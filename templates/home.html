@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}<title>Team Chess</title>{% endblock %}
+{% block body %}
+<h1>Team Chess</h1>
+<div id="pitch">A app to play chess with teams.</div>
+<form method="POST">
+  <label for="value">Your name:</label>
+  <input type="text" name="value" id="valuee">
+  <button type="submit">Submit</button>
+</form>
+<form action="/start">
+    <button type="submit">Start a game</button>
+</form>
+<form method="POST">
+  <label for="value">Join a game:</label>
+  <input type="text" name="value" id="value">
+  <button type="submit">Submit</button>
+</form>
+{% endblock %}
