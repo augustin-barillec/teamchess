@@ -2,18 +2,20 @@
 {% block title %}<title>Team Chess</title>{% endblock %}
 {% block body %}
 <h1>Team Chess</h1>
-<div id="pitch">A app to play chess with teams.</div>
-<form method="POST">
-  <label for="value">Your name:</label>
-  <input type="text" name="value" id="valuee">
-  <button type="submit">Submit</button>
-</form>
-<form action="/start">
-    <button type="submit">Start a game</button>
-</form>
-<form method="POST">
-  <label for="value">Join a game:</label>
-  <input type="text" name="value" id="value">
-  <button type="submit">Submit</button>
-</form>
+{% if logged %}
+    You are logged in as {{ session['name'] }}
+    <a href='/logout'>logout</a>
+    <form action="/start">
+        <button type="submit">Start a game</button>
+    </form>
+    <form action="/join" method="POST">
+        <label for="game">Join a game:</label>
+        <input type="text" name="game" id="game" required>
+    </form>
+{%else%}
+    <form action="/login" method="POST">
+        <label for="name">Your name: </label>
+        <input type="text" name="name" id="name" required>
+    </form>
+{%endif %}
 {% endblock %}
