@@ -25,7 +25,9 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 # sanity check route
 @app.route("/ping", methods=["GET"])
 def ping_pong():
+    # get all dicts in collection
     items_ref = db.collection(USERS)
+    # return json with all dicts
     return jsonify({item.id: item.to_dict() for item in items_ref.stream()})
 
 
