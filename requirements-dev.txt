@@ -1,3 +1,8 @@
-flake8
-mypy
-black
+flake8==6.*
+mypy==1.*
+flake8-bugbear==23.* 
+flake8-isort==6.* 
+isort==5.*
+pytest==7.*
+pytest-cov==4.*
+black==23.*

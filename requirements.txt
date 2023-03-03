@@ -3,5 +3,5 @@ chess==1.*
 flask==2.*
 firebase-admin==6.*
 pyyaml==6.*
-pyhocon
-pydantic
+pyhocon==0.*
+pydantic==1.*

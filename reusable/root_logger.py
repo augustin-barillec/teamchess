@@ -2,9 +2,10 @@ import logging
 
 
 def configure_root_logger(
-        level=logging.INFO,
-        fmt='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        to_keep=None):
+    level=logging.INFO,
+    fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    to_keep=None,
+):
     ch = logging.StreamHandler()
     formatter = logging.Formatter(fmt=fmt)
     ch.setFormatter(fmt=formatter)
@@ -13,6 +14,7 @@ def configure_root_logger(
 
         def filter_(record):
             return record.name in to_keep
+
         ch.addFilter(filter_)
     logger = logging.getLogger()
     logger.setLevel(level=level)

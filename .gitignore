@@ -5,3 +5,7 @@ __pycache__/
 *.pyc
 venv/
 *.local.conf
+.mypy_cache
+.vscode/
+pytest_report.xml
+.devcontainer
