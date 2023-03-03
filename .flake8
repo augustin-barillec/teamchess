@@ -1,0 +1,11 @@
+[flake8]
+# inspired from https://github.com/psf/black/blob/master/.flake8 
+# see error codes here https://pycodestyle.pycqa.org/en/latest/intro.html#error-codes
+extend-ignore = E203, E266, E501
+# line length is intentionally set to 80 here because black uses Bugbear
+# See https://github.com/psf/black/blob/master/docs/the_black_code_style.md#line-length for more details
+max-line-length = 120
+max-complexity = 18
+# wee use B9 to get warnings instead of E501 giving us errors, 
+# see https://black.readthedocs.io/en/stable/the_black_code_style.html
+select = B,C,E,F,I,W,T4,B9
