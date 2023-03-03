@@ -34,6 +34,10 @@ Welcome to Team Chess
 
 <br>
 
+## Config
+
+Ask Yokyok for .env file configuration
+
 ## Commands
 
 - Init
