@@ -35,8 +35,8 @@ def ping_pong():
     return jsonify({item.id: item.to_dict() for item in items_ref.stream()})
 
 
-@app.route("/get_player", methods=["GET"])
-def get_player():
+@app.route("/get_user", methods=["GET"])
+def get_user():
     if "user_id" not in session:
         user_dict = {"player_name": f"a{randint(1, 100)}", "game_id": None}
         user_ref = db.collection(USERS).add(user_dict)
