@@ -2,20 +2,18 @@
 {% block title %}<title>Team Chess</title>{% endblock %}
 {% block body %}
 <h1>Team Chess</h1>
-{% if logged %}
-    You are logged in as {{ session['name'] }}
-    <a href='/logout'>logout</a>
-    <form action="/start">
-        <button type="submit">Start a game</button>
-    </form>
-    <form action="/join" method="POST">
-        <label for="game">Join a game:</label>
-        <input type="text" name="game" id="game" required>
-    </form>
-{%else%}
-    <form action="/login" method="POST">
-        <label for="name">Your name: </label>
-        <input type="text" name="name" id="name" required>
-    </form>
-{%endif %}
+<form action="/update_player_name" method="POST">
+    <button type="submit">Record player name</button>
+    <input type="text" name="player_name" value="{{player_name}}" required>
+</form>
+<form action="/create" method="POST">
+    <button type="submit">Create a game</button>
+</form>
+<form action="/join" method="POST">
+    <button type="submit" >Join a game</button>
+    <input type="text" name="game_id" placeholder="game_id" value="{{game_id}}" required>
+    {% if game_not_found %}
+        <div>The game {{game_id}} was not found</div>
+    {% endif %}
+</form>
 {% endblock %}

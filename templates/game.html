@@ -1,7 +1,33 @@
 {% extends 'base.html' %}
 {% block title %}<title>Team Chess</title>{% endblock %}
 {% block body %}
-<h1>Team Chess</h1>
-You are logged in as {{ session['name'] }}
-You are joining the game {{ game_id }}
+<a href="/">Home</a>
+
+<div>White team: {{team_white_player_names}}</div>
+<div>Black team: {{team_black_player_names}}</div>
+
+{% if has_started %}
+    <div>The game {{game_id}} has started</div>
+{% else %}
+    <div>The game {{game_id}} has not started</div>
+{% endif %}
+
+{% if display_join_team_buttons %}
+<form method="POST">
+    <button type="submit" formaction="/join_team_white">Join white team</button>
+    <button type="submit" formaction="/join_team_black">Join black team</button>
+</form>
+{% endif %}
+
+{% if display_quit_team_button %}
+<form method="POST">
+    <button type="submit" formaction="/quit_team">Quit team</button>
+</form>
+{% endif %}
+
+{% if display_start_button %}
+    <form action="/start" method="POST">
+        <button type="submit">Start</button>
+    </form>
+{% endif %}
 {% endblock %}
