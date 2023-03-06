@@ -67,6 +67,11 @@ ARG SOPS_VERSION=3.7.3
 RUN curl -Lo sops_${SOPS_VERSION}_amd64.deb https://github.com/mozilla/sops/releases/download/v$SOPS_VERSION/sops_${SOPS_VERSION}_amd64.deb \
     && dpkg -i sops_${SOPS_VERSION}_amd64.deb && rm sops_${SOPS_VERSION}_amd64.deb
 
+# install stockfish
+RUN wget https://stockfishchess.org/files/stockfish_15.1_linux_x64_bmi2.zip \
+    && unzip stockfish_15.1_linux_x64_bmi2.zip && mv stockfish_15.1_linux_x64_bmi2/ /usr/local/lib/ \
+    && cd /usr/local/lib/stockfish_15.1_linux_x64_bmi2/src && make -j build ARCH=x86-64-modern && mv stockfish stockfish-15-64
+
 # VS Code overrides ENTRYPOINT and CMD when executing `docker run` by default.
 # Setting the ENTRYPOINT to docker-init.sh will configure non-root access to
 # the Docker socket if "overrideCommand": false is set in devcontainer.json.
