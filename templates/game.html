@@ -30,4 +30,30 @@
         <button type="submit">Start</button>
     </form>
 {% endif %}
+
+<div class="messages" id="messages"></div>
+<input type="text" placeholder="Message" name="message" id="message"/>
+<button type="button" name="send" id="send-btn" onClick="sendMessage()">Send</button>
+
+<script type="text/javascript">
+  var socketio = io();
+
+  const messages = document.getElementById("messages");
+
+  const createMessage = (name, msg) => {
+    const content = `<div>${name}: ${msg} (${new Date().toLocaleString()})</div>`;
+    messages.innerHTML += content;
+  };
+
+  socketio.on("message", (data) => {
+    createMessage(data.name, data.message);
+  });
+
+  const sendMessage = () => {
+    const message = document.getElementById("message");
+    if (message.value == "") return;
+    socketio.send({ data: message.value });
+    message.value = "";
+  };
+</script>
 {% endblock %}

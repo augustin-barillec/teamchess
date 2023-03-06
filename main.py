@@ -1,30 +1,34 @@
 import os
-import uuid
+import random
 import flask
+import flask_socketio
 import google.cloud.firestore
 import reusable
-import tools
-from random import randint
 app = flask.Flask(__name__)
 project_id = os.environ['PROJECT_ID']
 db = google.cloud.firestore.Client(project=project_id)
 app.secret_key = 'asdsdfsdfs13sdf_df%&'
+socketio = flask_socketio.SocketIO(app)
 
-GAMES = 'games_a'
-USERS = 'users_a'
+GAMES = 'a_games'
+USERS = 'a_users'
 
 
 @app.route('/')
 def home():
     if 'user_id' not in flask.session:
         user_dict = {
-            'player_name': f'a{randint(1, 100)}',
+            'player_name': f'a{random.randint(1, 100)}',
             'game_id': None}
         update_time, user_ref = db.collection(USERS).add(user_dict)
         flask.session['user_id'] = user_ref.id
-    else:
-        user_dict = db.collection(USERS).document(
-            flask.session['user_id']).get().to_dict()
+        return flask.redirect('/')
+    user_ref = db.collection(USERS).document(
+        flask.session['user_id'])
+    if not user_ref.get().exists:
+        flask.session.clear()
+        return flask.redirect('/')
+    user_dict = user_ref.get().to_dict()
     player_name = user_dict['player_name']
     game_id = user_dict['game_id']
     game_not_found = (
@@ -43,6 +47,8 @@ def update_player_name():
     if 'user_id' not in flask.session:
         return flask.redirect('/')
     user_ref = db.collection(USERS).document(flask.session['user_id'])
+    if not user_ref.get().exists:
+        return flask.redirect('/')
     player_name = flask.request.form['player_name']
     user_ref.update({'player_name': player_name})
     return flask.redirect('/')
@@ -53,6 +59,8 @@ def create():
     if 'user_id' not in flask.session:
         return flask.redirect('/')
     user_ref = db.collection(USERS).document(flask.session['user_id'])
+    if not user_ref.get().exists:
+        return flask.redirect('/')
     game_dict = {
         'moves': [],
         'players': {},
@@ -68,6 +76,8 @@ def join():
     if 'user_id' not in flask.session:
         return flask.redirect('/')
     user_ref = db.collection(USERS).document(flask.session['user_id'])
+    if not user_ref.get().exists:
+        return flask.redirect('/')
     game_id = flask.request.form['game_id']
     user_ref.update({'game_id': game_id})
     if not db.collection(GAMES).document(game_id).get().exists:
@@ -80,6 +90,8 @@ def join_team_white():
     if 'user_id' not in flask.session:
         return flask.redirect('/')
     user_ref = db.collection(USERS).document(flask.session['user_id'])
+    if not user_ref.get().exists:
+        return flask.redirect('/')
     user_dict = user_ref.get().to_dict()
     game_id = user_dict['game_id']
     if not db.collection(GAMES).document(game_id).get().exists:
@@ -95,6 +107,8 @@ def join_team_black():
     if 'user_id' not in flask.session:
         return flask.redirect('/')
     user_ref = db.collection(USERS).document(flask.session['user_id'])
+    if not user_ref.get().exists:
+        return flask.redirect('/')
     user_dict = user_ref.get().to_dict()
     game_id = user_dict['game_id']
     if not db.collection(GAMES).document(game_id).get().exists:
@@ -110,6 +124,8 @@ def quit_team():
     if 'user_id' not in flask.session:
         return flask.redirect('/')
     user_ref = db.collection(USERS).document(flask.session['user_id'])
+    if not user_ref.get().exists:
+        return flask.redirect('/')
     user_dict = user_ref.get().to_dict()
     game_id = user_dict['game_id']
     game_ref = db.collection(GAMES).document(game_id)
@@ -125,6 +141,8 @@ def start():
     if 'user_id' not in flask.session:
         return flask.redirect('/')
     user_ref = db.collection(USERS).document(flask.session['user_id'])
+    if not user_ref.get().exists:
+        return flask.redirect('/')
     user_dict = user_ref.get().to_dict()
     game_id = user_dict['game_id']
     game_ref = db.collection(GAMES).document(game_id)
@@ -140,6 +158,8 @@ def game():
         return flask.redirect('/')
     user_id = flask.session['user_id']
     user_ref = db.collection(USERS).document(user_id)
+    if not user_ref.get().exists:
+        return flask.redirect('/')
     user_dict = user_ref.get().to_dict()
     game_id = user_dict['game_id']
     if not db.collection(GAMES).document(game_id).get().exists:
@@ -187,5 +207,58 @@ def game():
         display_start_button=display_start_button)
 
 
+@socketio.on("message")
+def message(data):
+    if 'user_id' not in flask.session:
+        return
+    user_id = flask.session['user_id']
+    user_ref = db.collection(USERS).document(user_id)
+    if not user_ref.get().exists:
+        return
+    user_dict = user_ref.get().to_dict()
+    player_name = user_dict['player_name']
+    game_id = user_dict['game_id']
+    if not db.collection(GAMES).document(game_id).get().exists:
+        return
+    content = {"name": player_name, "message": data["data"]}
+    flask_socketio.send(content, to=game_id)
+
+
+@socketio.on("connect")
+def connect(auth):
+    if 'user_id' not in flask.session:
+        return
+    user_id = flask.session['user_id']
+    user_ref = db.collection(USERS).document(user_id)
+    if not user_ref.get().exists:
+        return
+    user_dict = user_ref.get().to_dict()
+    player_name = user_dict['player_name']
+    game_id = user_dict['game_id']
+    if not db.collection(GAMES).document(game_id).get().exists:
+        return
+    flask_socketio.join_room(game_id)
+    flask_socketio.send(
+        {"name": player_name, "message": "has entered the room"}, to=game_id)
+
+
+@socketio.on("disconnect")
+def disconnect():
+    if 'user_id' not in flask.session:
+        return
+    user_id = flask.session['user_id']
+    user_ref = db.collection(USERS).document(user_id)
+    if not user_ref.get().exists:
+        return
+    user_dict = user_ref.get().to_dict()
+    player_name = user_dict['player_name']
+    game_id = user_dict['game_id']
+    if not db.collection(GAMES).document(game_id).get().exists:
+        return
+    flask_socketio.leave_room(game_id)
+    flask_socketio.send(
+        {"name": player_name, "message": "has left the room"}, to=game_id)
+
+
 if __name__ == "__main__":
-    app.run(debug=True, port=5100)
+    socketio.run(app, debug=True)
