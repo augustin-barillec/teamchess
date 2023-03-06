@@ -1,192 +1,36 @@
 from random import randint
 
 import flask
-import google.cloud.firestore
+from flask import Flask, jsonify
+from flask_pydantic import validate
+from google.cloud.firestore import Client, CollectionReference
 
-import reusable
-from resources.configuration import AppConf
+from models.configuration import FlaskConf, GcpConf
+from models.moves import MovesPayload
 
-conf = AppConf.load()
-app = flask.Flask(__name__)
-project_id = conf.gcp.project_id
-db = google.cloud.firestore.Client(project=project_id)
-app.secret_key = conf.flask.secret_key.get_secret_value()
+gcp_conf = GcpConf.load()
+flask_conf = FlaskConf.load()
 
-GAMES = "games_j"
-USERS = "users_j"
+app = Flask(__name__)
+project_id = gcp_conf.project_id
+db = Client(project=project_id)
+db_coll_path = gcp_conf.firestore_path
+app.secret_key = flask_conf.secret_key.get_secret_value()
 
 
-@app.route("/")
-def home():
-    if "user_id" not in flask.session:
-        user_dict = {"player_name": f"a{randint(1, 100)}", "game_id": None}
-        _, user_ref = db.collection(USERS).add(user_dict)
-        flask.session["user_id"] = user_ref.id
+@app.route("/moves/<game_id>", methods=["POST"])
+@validate()
+def get_moves(game_id: str, body: MovesPayload):
+    """Receive next moves chosen by player in the given game"""
+    document = db.collection(gcp_conf.top_collection).document(gcp_conf.app_document)  # created via tf
+    game_coll: CollectionReference = document.collection(game_id)  # creates it if not exists
+    moves = game_coll.document("moves").get()  # retrieved past moves
+    if moves.exists:
+        # not the first move of the game
+        return jsonify({"first": False})
     else:
-        user_dict = (
-            db.collection(USERS).document(flask.session["user_id"]).get().to_dict()
-        )
-    player_name = user_dict["player_name"]
-    game_id = user_dict["game_id"]
-    game_not_found = (
-        game_id is not None and not db.collection(GAMES).document(game_id).get().exists
-    )
-    game_id = "" if game_id is None else game_id
-    return flask.render_template(
-        "home.html",
-        player_name=player_name,
-        game_id=game_id,
-        game_not_found=game_not_found,
-    )
-
-
-@app.route("/update_player_name", methods=["POST"])
-def update_player_name():
-    if "user_id" not in flask.session:
-        return flask.redirect("/")
-    user_ref = db.collection(USERS).document(flask.session["user_id"])
-    player_name = flask.request.form["player_name"]
-    user_ref.update({"player_name": player_name})
-    return flask.redirect("/")
-
-
-@app.route("/create", methods=["POST"])
-def create():
-    if "user_id" not in flask.session:
-        return flask.redirect("/")
-    user_ref = db.collection(USERS).document(flask.session["user_id"])
-    game_dict = {
-        "moves": [],
-        "players": {},
-        "organizer": user_ref.id,
-        "has_started": False,
-    }
-    update_time, game_ref = db.collection(GAMES).add(game_dict)
-    user_ref.update({"game_id": game_ref.id})
-    return flask.redirect("/game")
-
-
-@app.route("/join", methods=["POST"])
-def join():
-    if "user_id" not in flask.session:
-        return flask.redirect("/")
-    user_ref = db.collection(USERS).document(flask.session["user_id"])
-    game_id = flask.request.form["game_id"]
-    user_ref.update({"game_id": game_id})
-    if not db.collection(GAMES).document(game_id).get().exists:
-        return flask.redirect("/")
-    return flask.redirect("/game")
-
-
-@app.route("/join_team_white", methods=["POST"])
-def join_team_white():
-    if "user_id" not in flask.session:
-        return flask.redirect("/")
-    user_ref = db.collection(USERS).document(flask.session["user_id"])
-    user_dict = user_ref.get().to_dict()
-    game_id = user_dict["game_id"]
-    if not db.collection(GAMES).document(game_id).get().exists:
-        return flask.redirect("/")
-    game_ref = db.collection(GAMES).document(game_id)
-    now = reusable.time.get_now()
-    game_ref.update({f"players.{user_ref.id}": (now, "team_white")})
-    return flask.redirect("/game")
-
-
-@app.route("/join_team_black", methods=["POST"])
-def join_team_black():
-    if "user_id" not in flask.session:
-        return flask.redirect("/")
-    user_ref = db.collection(USERS).document(flask.session["user_id"])
-    user_dict = user_ref.get().to_dict()
-    game_id = user_dict["game_id"]
-    if not db.collection(GAMES).document(game_id).get().exists:
-        return flask.redirect("/")
-    game_ref = db.collection(GAMES).document(game_id)
-    now = reusable.time.get_now()
-    game_ref.update({f"players.{user_ref.id}": (now, "team_black")})
-    return flask.redirect("/game")
-
-
-@app.route("/quit_team", methods=["POST"])
-def quit_team():
-    if "user_id" not in flask.session:
-        return flask.redirect("/")
-    user_ref = db.collection(USERS).document(flask.session["user_id"])
-    user_dict = user_ref.get().to_dict()
-    game_id = user_dict["game_id"]
-    game_ref = db.collection(GAMES).document(game_id)
-    if not game_ref.get().exists:
-        return flask.redirect("/")
-    game_ref.update({f"players.{user_ref.id}": google.cloud.firestore.DELETE_FIELD})
-    return flask.redirect("/game")
-
-
-@app.route("/start", methods=["POST"])
-def start():
-    if "user_id" not in flask.session:
-        return flask.redirect("/")
-    user_ref = db.collection(USERS).document(flask.session["user_id"])
-    user_dict = user_ref.get().to_dict()
-    game_id = user_dict["game_id"]
-    game_ref = db.collection(GAMES).document(game_id)
-    if not game_ref.get().exists:
-        return flask.redirect("/")
-    game_ref.update({"has_started": True})
-    return flask.redirect("/game")
-
-
-@app.route("/game")
-def game():
-    if "user_id" not in flask.session:
-        return flask.redirect("/")
-    user_id = flask.session["user_id"]
-    user_ref = db.collection(USERS).document(user_id)
-    user_dict = user_ref.get().to_dict()
-    game_id = user_dict["game_id"]
-    if not db.collection(GAMES).document(game_id).get().exists:
-        return flask.redirect("/")
-    game_ref = db.collection(GAMES).document(game_id)
-    game_dict = game_ref.get().to_dict()
-    is_organizer = game_dict["organizer"] == user_id
-    has_started = game_dict["has_started"]
-    players = game_dict["players"]
-    has_joined_players = user_id in players
-    sorted_players = sorted(players, key=lambda p: players[p][0])
-
-    team_white_player_names = []
-    team_black_player_names = []
-    for user_id in sorted_players:
-        if db.collection(USERS).document(user_id).get().exists:
-            user_dict = db.collection(USERS).document(user_id).get().to_dict()
-            player_name = user_dict["player_name"]
-            team = players[user_id][1]
-            if team == "team_white":
-                team_white_player_names.append(player_name)
-            elif team == "team_black":
-                team_black_player_names.append(player_name)
-
-    display_join_team_buttons = not has_started and not has_joined_players
-
-    display_quit_team_button = not has_started and has_joined_players
-
-    display_start_button = (
-        not has_started
-        and is_organizer  # noqa: W503
-        and len(team_white_player_names) > 0  # noqa: W503
-        and len(team_black_player_names) > 0  # noqa: W503
-    )
-
-    return flask.render_template(
-        "game.html",
-        game_id=game_id,
-        team_white_player_names=team_white_player_names,
-        team_black_player_names=team_black_player_names,
-        has_started=has_started,
-        display_join_team_buttons=display_join_team_buttons,
-        display_quit_team_button=display_quit_team_button,
-        display_start_button=display_start_button,
-    )
+        # first move of the game
+        return jsonify({"first": True})
 
 
 if __name__ == "__main__":

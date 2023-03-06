@@ -40,3 +40,4 @@ Welcome to Team Chess
   - `gcloud auth login`
   - `gcloud config set project {Ask Yokyok}`
   - `gcloud auth application-default login`
+

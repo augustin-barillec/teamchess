@@ -1,6 +1,6 @@
-cairosvg==2.*
-chess==1.*
+stockfish==3.*
 flask==2.*
+flask-pydantic==0.*
 firebase-admin==6.*
 pyyaml==6.*
 pyhocon==0.*
