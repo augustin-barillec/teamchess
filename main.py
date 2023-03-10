@@ -3,15 +3,15 @@ import random
 import flask
 import flask_socketio
 import google.cloud.firestore
-import reusable
+# import reusable
 app = flask.Flask(__name__)
 project_id = os.environ['PROJECT_ID']
 db = google.cloud.firestore.Client(project=project_id)
 app.secret_key = 'asdsdfsdfs13sdf_df%&'
 socketio = flask_socketio.SocketIO(app)
 
-GAMES = 'a_games'
-USERS = 'a_users'
+GAMES = 'ab_games'
+USERS = 'ab_users'
 
 
 @app.route('/')
