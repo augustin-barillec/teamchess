@@ -1,6 +1,0 @@
-cairosvg==2.*
-chess==1.*
-flask==2.*
-flask-socketio==5.*
-firebase-admin==6.*
-pyyaml==6.*
