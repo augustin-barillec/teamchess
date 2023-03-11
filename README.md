@@ -26,6 +26,6 @@
                                                          
 ```
 
-Team Chess is a game where two teams compete in chess. 
-Each player on the team whose turn it is to play suggests a move. 
+Team chess is a game in which two teams compete in chess.
+During their turn, each player on a team suggests a move.
 The best move, according to a chess engine, is played.
