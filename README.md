@@ -26,17 +26,6 @@
                                                          
 ```
 
-<br>
-
-# Introduction
-
-Welcome to Team Chess
-
-<br>
-
-## Commands
-
-- Init
-  - `gcloud auth login`
-  - `gcloud config set project {Ask Yokyok}`
-  - `gcloud auth application-default login`
+Team chess is a game in which two teams compete in chess.
+During their turn, each player on a team suggests a move.
+The best move, according to a chess engine, is played.
