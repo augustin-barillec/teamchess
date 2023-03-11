@@ -3,7 +3,7 @@ import random
 import flask
 import flask_socketio
 import google.cloud.firestore
-# import reusable
+import tools
 app = flask.Flask(__name__)
 project_id = os.environ['PROJECT_ID']
 db = google.cloud.firestore.Client(project=project_id)
@@ -97,7 +97,7 @@ def join_team_white():
     if not db.collection(GAMES).document(game_id).get().exists:
         return flask.redirect('/')
     game_ref = db.collection(GAMES).document(game_id)
-    now = reusable.time.get_now()
+    now = tools.time.get_now()
     game_ref.update({f'players.{user_ref.id}': (now, 'team_white')})
     return flask.redirect('/game')
 
@@ -114,7 +114,7 @@ def join_team_black():
     if not db.collection(GAMES).document(game_id).get().exists:
         return flask.redirect('/')
     game_ref = db.collection(GAMES).document(game_id)
-    now = reusable.time.get_now()
+    now = tools.time.get_now()
     game_ref.update({f'players.{user_ref.id}': (now, 'team_black')})
     return flask.redirect('/game')
 
@@ -225,7 +225,7 @@ def message(data):
 
 
 @socketio.on("connect")
-def connect(auth):
+def connect():
     if 'user_id' not in flask.session:
         return
     user_id = flask.session['user_id']
