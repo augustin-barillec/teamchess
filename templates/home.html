@@ -2,18 +2,21 @@
 {% block title %}<title>Team Chess</title>{% endblock %}
 {% block body %}
 <h1>Team Chess</h1>
-<form action="/update_player_name" method="POST">
-    <button type="submit">Record player name</button>
-    <input type="text" name="player_name" value="{{player_name}}" required>
+
+<form action="/submit_user_name" method="POST">
+    <button type="submit">Submit player name</button>
+    <input type="text" name="user_name" value="{{user_name}}" required>
 </form>
+
 <form action="/create_game" method="POST">
     <button type="submit">Create a game</button>
 </form>
+
 <form action="/join_game" method="POST">
     <button type="submit" >Join a game</button>
-    <input type="text" name="game_id" placeholder="game_id" value="{{game_id}}" required>
+    <input type="text" name="game_id" placeholder="game_id" value="{{game_id_to_display}}" required>
     {% if game_not_found %}
-        <div>The game {{game_id}} was not found</div>
+        <div>The game {{game_id_to_display}} was not found</div>
     {% endif %}
 </form>
 {% endblock %}

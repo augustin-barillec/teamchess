@@ -2,21 +2,9 @@
 {% block title %}<title>Team Chess</title>{% endblock %}
 {% block body %}
 <a href="/">Home</a>
-<br>
-<div>user_id: {{user_id}}</div>
-<div>player_name: {{player_name}}</div>
-<br>
-<div>game_id: {{game_id}}</div>
-<br>
-<br>
-<div>moves_played: {{moves_played}}</div>
-<br>
-<br>
-<div>current_move_number: {{current_move_number}}</div>
-<br>
 <div>has_started: {{has_started}}</div>
 {% if display_start_button %}
-    <form action="/start" method="POST">
+    <form action="/start_game" method="POST">
         <button type="submit">Start</button>
     </form>
 {% endif %}
@@ -25,9 +13,9 @@
 <div>team_black_player_names: {{team_black_player_names}}</div>
 <br>
 {% if display_join_team_buttons %}
-<form method="POST">
-    <button type="submit" formaction="/join_team_white">Join white team</button>
-    <button type="submit" formaction="/join_team_black">Join black team</button>
+<form action="/join_team" method="POST">
+    <button type="submit" name="white">Join white team</button>
+    <button type="submit" name="black">Join black team</button>
 </form>
 {% endif %}
 <br>
