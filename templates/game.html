@@ -2,33 +2,39 @@
 {% block title %}<title>Team Chess</title>{% endblock %}
 {% block body %}
 <a href="/">Home</a>
+<div>user_id: {{user_id}}</div>
+<div>user_name: {{user_name}}</div>
+<div>game_id: {{game_id}}</div>
+<div>played_moves: {{played_moves}}</div>
+<div>current_move_number: {{current_move_number}}</div>
+
 <div>has_started: {{has_started}}</div>
 {% if display_start_button %}
     <form action="/start_game" method="POST">
         <button type="submit">Start</button>
     </form>
 {% endif %}
-<br>
-<div>team_white_player_names: {{team_white_player_names}}</div>
-<div>team_black_player_names: {{team_black_player_names}}</div>
-<br>
+
+<div>team_white_player_names: {{team_white_user_names}}</div>
+<div>team_black_player_names: {{team_black_user_names}}</div>
+
 {% if display_join_team_buttons %}
 <form action="/join_team" method="POST">
-    <button type="submit" name="white">Join white team</button>
-    <button type="submit" name="black">Join black team</button>
+    <button type="submit" name="team_white">Join white team</button>
+    <button type="submit" name="team_black">Join black team</button>
 </form>
 {% endif %}
-<br>
+
 {% if display_quit_team_button %}
 <form method="POST">
     <button type="submit" formaction="/quit_team">Quit team</button>
 </form>
 {% endif %}
-<br>
+
 {% if display_board_image %}
 <div>{{board_image}}</div>
 {% endif %}
-<br>
+
 {% if display_submit_move_button %}
 <form action="/submit_move" method="POST">
     <button type="submit" >Submit a move</button>
