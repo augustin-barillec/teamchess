@@ -1,14 +1,14 @@
-// import Vue from 'vue';
-import { createRouter, createWebHistory } from 'vue-router';
-import Ping from '../components/Ping.vue';
+// import Vue from "vue";
+import { createRouter, createWebHistory } from "vue-router";
+import Home from "../components/Home.vue";
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
-      path: '/',
-      name: 'Ping',
-      component: Ping,
+      path: "/",
+      name: "Home",
+      component: Home,
     },
   ],
 });
