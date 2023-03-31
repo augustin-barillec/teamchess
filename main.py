@@ -24,7 +24,7 @@ project_id = os.getenv("PROJECT_ID")
 
 def user_create():
     user_dict = {"user_name": f"a{random.randint(1, 100)}"}
-    update_time, user_ref = db.collection(model.constants.USERS).add(user_dict)
+    update_time, user_ref = db.collection(os.environ["USERS"]).add(user_dict)
     return user_ref.id
 
 
@@ -47,13 +47,13 @@ def after_request(response):
 def home():
     if "user_id" not in flask.session:
         user_dict = {"user_name": f"a{random.randint(1, 100)}"}
-        update_time, user_ref = db.collection(model.constants.USERS).add(
+        update_time, user_ref = db.collection(os.environ["USERS"]).add(
             user_dict
         )
         flask.session["user_id"] = user_ref.id
         return flask.redirect("/")
     user_id = flask.session["user_id"]
-    user_ref = db.collection(model.constants.USERS).document(user_id)
+    user_ref = db.collection(os.environ["USERS"]).document(user_id)
     user_dict = user_ref.get().to_dict()
     if user_dict is None:
         flask.session.clear()
@@ -62,7 +62,7 @@ def home():
     game_id = user_dict.get("game_id")
     game_not_found = (
         game_id is not None
-        and not db.collection(model.constants.GAMES)
+        and not db.collection(os.environ["GAMES"])
         .document(game_id)
         .get()
         .exists
@@ -79,11 +79,11 @@ def home():
 @app.route("/update_user_name", methods=["POST"])
 def update_user_name():
     data = flask.request.json
-    user_ref = db.collection(model.constants.USERS).document(data["player_id"])
+    user_ref = db.collection(os.environ["USERS"]).document(data["player_id"])
     user_dict = user_ref.get().to_dict()
     if user_dict is None:
         user_id = user_create()
-        user_ref = db.collection(model.constants.USERS).document(user_id)
+        user_ref = db.collection(os.environ["USERS"]).document(user_id)
     user_ref.update({"user_name": data["user_name"]})
     user_dict = user_ref.get().to_dict()
     return flask.make_response(
@@ -100,11 +100,11 @@ def create_user():
 @app.route("/get_user", methods=["POST"])
 def get_user():
     data = flask.request.json
-    user_ref = db.collection(model.constants.USERS).document(data["player_id"])
+    user_ref = db.collection(os.environ["USERS"]).document(data["player_id"])
     user_dict = user_ref.get().to_dict()
     if user_dict is None:
         user_id = user_create()
-        user_ref = db.collection(model.constants.USERS).document(user_id)
+        user_ref = db.collection(os.environ["USERS"]).document(user_id)
         user_dict = user_ref.get().to_dict()
     return flask.make_response(
         flask.jsonify({"user": user_dict, "user_id": user_ref.id})
@@ -113,13 +113,15 @@ def get_user():
 
 @app.route("/create_game", methods=["POST"])
 def create_game():
-    user_ref = model.get.get_user(db, flask.session)
-    if user_ref is None:
-        return flask.redirect("/")
+    data = flask.request.json
+    user_ref = db.collection(os.environ["USERS"]).document(data["player_id"])
+    user_dict = user_ref.get().to_dict()
+    if user_dict is None:
+        return flask.make_response(flask.jsonify({"error": "User unknown"}))
     game_dict = {"organizer_id": user_ref.id, "moves": {}, "players": {}}
-    update_time, game_ref = db.collection(model.constants.GAMES).add(game_dict)
+    update_time, game_ref = db.collection(os.environ["GAMES"]).add(game_dict)
     user_ref.update({"game_id": game_ref.id})
-    return flask.redirect("/game")
+    return flask.make_response(flask.jsonify({"game_id": game_ref.id}))
 
 
 @app.route("/join_game", methods=["POST"])
@@ -129,7 +131,7 @@ def join_game():
         flask.redirect("/")
     game_id = flask.request.form["game_id"]
     user_ref.update({"game_id": game_id})
-    game_ref = db.collection(model.constants.GAMES).document(game_id)
+    game_ref = db.collection(os.environ["GAMES"]).document(game_id)
     if not game_ref.get().exists:
         return flask.redirect("/")
     return flask.redirect("/game")
