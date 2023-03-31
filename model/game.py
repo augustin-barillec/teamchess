@@ -97,7 +97,7 @@ class Game:
     def is_move_completed(self, move_number, move):
         team_name = self.move_number_to_team_name(move_number)
         move_players = sorted(move)
-        team_players = getattr(self, f'{team_name}_user_ids')
+        team_players = sorted(getattr(self, f'{team_name}_user_ids'))
         return move_players == team_players
 
     def get_current_move_number(self):
