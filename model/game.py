@@ -1,15 +1,17 @@
 import chess
 import flask
 from chess import svg
-from model import constants
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
 
 class Game:
     def __init__(self, db, game_id):
         self.db = db
         self.id = game_id
 
-        self.ref = self.db.collection(constants.GAMES).document(self.id)
+        self.ref = self.db.collection(os.environ["GAMES"]).document(self.id)
         self.dict = self.ref.get().to_dict()
 
         self.organizer_id = self.dict["organizer_id"]
@@ -80,7 +82,7 @@ class Game:
 
     def get_user_name(self, user_id):
         return (
-            self.db.collection(constants.USERS)
+            self.db.collection(os.environ["USERS"])
             .document(user_id)
             .get()
             .to_dict()["user_name"]

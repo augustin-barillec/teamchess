@@ -1,11 +1,13 @@
-from model import constants
+from dotenv import load_dotenv
+import os
 
+load_dotenv()
 
 def get_user(db, session):
     if "user_id" not in session:
         return
     user_id = session["user_id"]
-    user_ref = db.collection(constants.USERS).document(user_id)
+    user_ref = db.collection(os.environ["USERS"]).document(user_id)
     if not user_ref.get().exists:
         return
     return user_ref
@@ -19,7 +21,7 @@ def get_user_and_game(db, session):
     if "game_id" not in user_dict:
         return
     game_id = user_dict["game_id"]
-    game_ref = db.collection(constants.GAMES).document(game_id)
+    game_ref = db.collection(os.environ["GAMES"]).document(game_id)
     if not game_ref.get().exists:
         return
     return user_ref, game_ref

@@ -11,6 +11,7 @@ module.exports = {
     parser: 'babel-eslint',
   },
   rules: {
+    "quotes": [2, "single", { "avoidEscape": true }],
     'no-console': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
     'no-debugger': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
     semi: [2, "always"],
@@ -21,7 +22,6 @@ module.exports = {
     "vue/multi-word-component-names": "warn",
     "no-sequences": "warn",
     "prefer-const": "warn",
-    camelcase: ["warn", { properties: "never" }],
-    "quotes": [2, "double", { "avoidEscape": true }]
+    camelcase: ["off", { properties: "never" }],
   },
 };
