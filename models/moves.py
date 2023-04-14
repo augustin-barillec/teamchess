@@ -45,10 +45,6 @@ class MovesPayload(BaseModel):
     moves: list[PlayerMove]
 
 
-class ChessMoves(BaseModel):
-    list_moves: list[ChessMove]
-
-
 class MoveEval(BaseModel):
     move: ChessMove = Field(alias="Move")
     centipawn: int = Field(alias="Centipawn")
@@ -56,3 +52,8 @@ class MoveEval(BaseModel):
 
     class Config:
         allow_population_by_field_name = True
+
+
+class EvalPlayerMove(BaseModel):
+    player_id: str
+    evaluation: MoveEval

@@ -60,3 +60,4 @@ class StockfishConf(BaseConf):
     depth: int
     threads: int
     min_thinking_time: int  # minimum nb of ms to search for a move
+    nb_best_moves: int  # number of best moves to get from stockfish to compare to player moves
