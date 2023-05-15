@@ -94,7 +94,11 @@ def update_user_name():
 @app.route("/create_user", methods=["GET"])
 def create_user():
     user_id = user_create()
-    return flask.make_response(flask.jsonify({"user_id": user_id}))
+    user_ref = db.collection(os.environ["USERS"]).document(user_id)
+    user_dict = user_ref.get().to_dict()
+    return flask.make_response(
+        flask.jsonify({"user": user_dict, "user_id": user_ref.id})
+    )
 
 
 @app.route("/get_user", methods=["POST"])
@@ -135,6 +139,22 @@ def join_game():
     if not game_ref.get().exists:
         return flask.redirect("/")
     return flask.redirect("/game")
+
+
+@app.route("/delete_game", methods=["POST"])
+def delete_game():
+    data = flask.request.json
+    user_ref = db.collection(os.environ["USERS"]).document(data["player_id"])
+    user_ref.update({"game_id": google.cloud.firestore.DELETE_FIELD})
+    user_dict = user_ref.get().to_dict()
+    if "game_id" not in user_dict:
+        return flask.make_response(
+            flask.jsonify({"success": "Game successfully deleted"})
+        )
+    else:
+        return flask.make_response(
+            flask.jsonify({"error": "Error when deleting game"})
+        )
 
 
 @app.route("/join_team", methods=["POST"])

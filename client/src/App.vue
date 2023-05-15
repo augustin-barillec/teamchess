@@ -1,10 +1,4 @@
 <template>
-  <div id="app">
-    <router-view />
-  </div>
+  <router-view />
 </template>
-<style>
-#app {
-  margin-top: 60px;
-}
-</style>
+<style lang="less" src="./App.less" />

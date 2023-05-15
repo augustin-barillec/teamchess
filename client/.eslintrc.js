@@ -7,9 +7,6 @@ module.exports = {
     'plugin:vue/vue3-essential',
     '@vue/airbnb',
   ],
-  parserOptions: {
-    parser: 'babel-eslint',
-  },
   rules: {
     "quotes": [2, "single", { "avoidEscape": true }],
     'no-console': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
@@ -23,5 +20,6 @@ module.exports = {
     "no-sequences": "warn",
     "prefer-const": "warn",
     camelcase: ["off", { properties: "never" }],
+    'max-len': ["error", { "code": 1200 }]
   },
 };

@@ -1,14 +1,30 @@
 <template>
-  <h1>Team Chess</h1>
-  <div class="container">
-    <input type="text" name="user_name" v-model="user_name" required />
-    <button @click="submitPlayerName">Submit player name</button><br />
-    <button v-if="game_id === ''" type="submit" @click="createGame">Create a game</button><br />
-    <button v-if="game_id !== ''" type="submit" @click="joinGame">Join current game</button><br />
-    <button v-if="game_id !== ''" type="submit" @click="deleteGame">Leave current game</button>
-    <br />
-    <button v-if="game_id !== ''" type="submit" @click="shareGame">Share current game</button>
+  <div class="header"><h1>Team Chess</h1></div>
+  <div class="nav">
+    <a href="#">Link</a>
+    <a href="#">Link</a>
+    <a href="#">Link</a>
+    <a href="#">Link</a>
   </div>
+  <div class="row">
+    <div class="side">
+      <input type="text" name="user_name" v-model="user_name" required />
+      <button @click="submitPlayerName">Submit player name</button><br />
+      <button v-if="game_id === ''" type="submit" @click="createGame">Create a game</button><br />
+      <button v-if="game_id !== '' && !show" type="submit" @click="joinGame">Join current game</button><br />
+      <button v-if="game_id !== ''" type="submit" @click="deleteGame">Leave current game</button>
+      <br />
+      <button v-if="game_id !== ''" type="submit" @click="shareGame">Share current game</button>
+    </div>
+    <div class="main">
+      <div v-if="show" class="board">
+        <div v-for="n in 8" :key="`row_${n}`" :class="`row_${n}`">
+          <div v-for="(letter, index) in letters" :key="`cell_${index + n}`" :class="['cell', { light: (index + n) % 2 === 0, dark: (index + n) % 2 !== 0 }]" :id="`cell_${letter}${n}`"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="footer"><h1>Team Chess</h1></div>
 </template>
 <script>
 import axios from 'axios';
@@ -21,16 +37,44 @@ export default {
   title: 'homePage',
   data() {
     return {
+      letters: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'],
       game_not_found: false,
       user_name: '',
       game_id: '',
       show_code_input: false,
       shared_id: '',
+      show: false,
     };
   },
   methods: {
-    joinGame() {},
-    deleteGame() {},
+    joinGame() {
+      this.show = true;
+    },
+    deleteGame() {
+      const game_id = this.getStorage('game_id');
+      const player_id = this.getStorage('user_id');
+      if (game_id) {
+        const path = 'http://localhost:5000/delete_game';
+        axios
+          .post(path, { game_id, player_id })
+          .then((res) => {
+            const { success, error } = res.data;
+            if (error) {
+              toast.error(error);
+            } else if (success) {
+              toast.success(success);
+              this.deleteStorage('game_id');
+              this.game_id = '';
+            }
+          })
+          .catch((error) => {
+            console.error(error);
+            toast.error(error);
+          });
+      } else {
+        toast.error('No game to delete');
+      }
+    },
     shareGame() {
       const urlToShare = `${window.location.href}?gameId=${this.game_id}`;
       navigator.clipboard.writeText(urlToShare).then(
@@ -82,7 +126,7 @@ export default {
     },
     initPlayer() {
       const player_id = this.getStorage('user_id');
-      const game_id = this.$route.query.gameId;
+      const game_id = this.$route.query.gameId || '';
       if (player_id) {
         const path = 'http://localhost:5000/get_user';
         axios
@@ -104,7 +148,9 @@ export default {
         axios
           .get(path)
           .then((res) => {
-            this.createStorage('user_id', res.data?.user_id);
+            const { user, user_id } = res.data;
+            this.user_name = user.user_name ? user.user_name : '';
+            this.createStorage('user_id', user_id);
           })
           .catch((error) => {
             console.error(error);
@@ -117,6 +163,9 @@ export default {
     },
     getStorage(key) {
       return localStorage.getItem(key);
+    },
+    deleteStorage(key) {
+      return localStorage.removeItem(key);
     },
   },
   created() {
