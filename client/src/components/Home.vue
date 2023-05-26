@@ -11,8 +11,9 @@
       <input type="text" name="user_name" v-model="user_name" required />
       <button @click="submitPlayerName">Submit player name</button><br />
       <button v-if="game_id === ''" type="submit" @click="createGame">Create a game</button><br />
-      <button v-if="game_id !== '' && !show" type="submit" @click="joinGame">Join current game</button><br />
+      <button v-if="game_id !== '' && !show" type="submit" @click="joinGame(game_id)">Join current game</button><br />
       <button v-if="game_id !== ''" type="submit" @click="deleteGame">Leave current game</button>
+      <br />
       <br />
       <button v-if="game_id !== ''" type="submit" @click="shareGame">Share current game</button>
     </div>
@@ -47,8 +48,32 @@ export default {
     };
   },
   methods: {
-    joinGame() {
-      this.show = true;
+    joinGame(game_id) {
+      console.log(game_id);
+      if (game_id) {
+        const path = 'http://localhost:5000/join_game';
+        const player_id = this.getStorage('user_id');
+        axios
+          .post(path, { game_id, player_id })
+          .then((res) => {
+            const { success, error } = res.data;
+            if (error) {
+              toast.error(error);
+            } else if (success) {
+              console.log('success');
+              toast.success(success);
+              this.game_id = game_id;
+              console.log('createStorage');
+              this.createStorage('game_id', game_id);
+              this.show = true;
+              console.log('all ok');
+            }
+          })
+          .catch((error) => {
+            console.error(error);
+            toast.error(error);
+          });
+      }
     },
     deleteGame() {
       const game_id = this.getStorage('game_id');
@@ -72,7 +97,7 @@ export default {
             toast.error(error);
           });
       } else {
-        toast.error('No game to delete');
+        toast.error('No game to leave');
       }
     },
     shareGame() {
@@ -118,6 +143,7 @@ export default {
           const { user, user_id } = res.data;
           this.user_name = user.user_name;
           this.createStorage('user_id', user_id);
+          toast.success('Player name successfully updated !');
         })
         .catch((error) => {
           console.error(error);
@@ -138,6 +164,7 @@ export default {
             this.game_id = this.game_id !== '' ? this.game_id : game_id;
             if (user_id) this.createStorage('user_id', user_id);
             if (user.game_id) this.createStorage('game_id', user.game_id);
+            if (user.game_id) this.show = true;
           })
           .catch((error) => {
             console.error(error);
@@ -151,6 +178,7 @@ export default {
             const { user, user_id } = res.data;
             this.user_name = user.user_name ? user.user_name : '';
             this.createStorage('user_id', user_id);
+            if (game_id) this.joinGame(game_id);
           })
           .catch((error) => {
             console.error(error);

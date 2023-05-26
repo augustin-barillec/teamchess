@@ -130,15 +130,19 @@ def create_game():
 
 @app.route("/join_game", methods=["POST"])
 def join_game():
-    user_ref = model.get.get_user(db, flask.session)
-    if user_ref is None:
-        flask.redirect("/")
-    game_id = flask.request.form["game_id"]
-    user_ref.update({"game_id": game_id})
-    game_ref = db.collection(os.environ["GAMES"]).document(game_id)
-    if not game_ref.get().exists:
-        return flask.redirect("/")
-    return flask.redirect("/game")
+    data = flask.request.json
+    user_ref = db.collection(os.environ["USERS"]).document(data["player_id"])
+    user_dict = user_ref.get().to_dict()
+    game_ref = db.collection(os.environ["GAMES"]).document(data["game_id"])
+    game_dict = game_ref.get().to_dict()
+    if user_dict is None:
+        return flask.make_response(flask.jsonify({"error": "User unknown"}))
+    if game_dict is None:
+        return flask.make_response(flask.jsonify({"error": "Game unknown"}))
+    user_ref.update({"game_id": data["game_id"]})
+    return flask.make_response(
+        flask.jsonify({"success": "Game successfully joined"})
+    )
 
 
 @app.route("/delete_game", methods=["POST"])
@@ -149,11 +153,11 @@ def delete_game():
     user_dict = user_ref.get().to_dict()
     if "game_id" not in user_dict:
         return flask.make_response(
-            flask.jsonify({"success": "Game successfully deleted"})
+            flask.jsonify({"success": "Game successfully left"})
         )
     else:
         return flask.make_response(
-            flask.jsonify({"error": "Error when deleting game"})
+            flask.jsonify({"error": "Error when leaving game"})
         )
 
 
