@@ -11,6 +11,7 @@ import {
   validateAndApplyMove,
   detectGameOver,
   getOppositeSide,
+  resolveSelectedMove,
 } from "./turnLogic.js";
 import { GameStatus } from "../shared_types.js";
 
@@ -265,6 +266,48 @@ describe("turnLogic", () => {
 
     it("returns white for black", () => {
       expect(getOppositeSide("black")).toBe("white");
+    });
+  });
+
+  describe("resolveSelectedMove", () => {
+    const candidates = ["e2e4", "d2d4", "g1f3"];
+
+    it("keeps the engine move when it is one of the candidates", () => {
+      const result = resolveSelectedMove("d2d4", candidates, () => 0);
+
+      expect(result).toEqual({ lan: "d2d4", fallback: false });
+    });
+
+    it("draws a random candidate when the engine did not answer", () => {
+      const result = resolveSelectedMove(null, candidates, () => 0.5);
+
+      expect(result).toEqual({ lan: "d2d4", fallback: true });
+    });
+
+    it("draws a random candidate when the engine answers outside the proposals", () => {
+      // Includes "(none)" and any illegal or unproposed move.
+      const result = resolveSelectedMove("a7a6", candidates, () => 0);
+
+      expect(result).toEqual({ lan: "e2e4", fallback: true });
+    });
+
+    it("never indexes past the end when rng returns 1", () => {
+      const result = resolveSelectedMove(null, candidates, () => 1);
+
+      expect(result).toEqual({ lan: "g1f3", fallback: true });
+    });
+
+    it("only ever returns a candidate", () => {
+      for (let i = 0; i < 50; i++) {
+        const result = resolveSelectedMove(null, candidates);
+        expect(candidates).toContain(result!.lan);
+        expect(result!.fallback).toBe(true);
+      }
+    });
+
+    it("returns null when there is nothing to play", () => {
+      expect(resolveSelectedMove(null, [])).toBeNull();
+      expect(resolveSelectedMove("e2e4", [])).toBeNull();
     });
   });
 });

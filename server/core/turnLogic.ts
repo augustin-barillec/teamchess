@@ -70,6 +70,41 @@ export function validateAndApplyMove(chess: Chess, lan: string): MoveResult {
   }
 }
 
+export interface SelectedMove {
+  lan: string;
+  /** True when the engine could not be trusted and a candidate was drawn at random. */
+  fallback: boolean;
+}
+
+/**
+ * Decides which candidate to play from the engine's answer.
+ *
+ * The engine is only an adviser: candidates were validated as legal when submitted, so any
+ * of them can be played. When its answer is unusable — no engine, no answer in time, or a
+ * move that is not one of the proposals — a candidate is drawn at random and `fallback` is
+ * set so the caller can warn the players. Returns null when there is nothing to play.
+ *
+ * Pure function - `rng` is injected for testing.
+ */
+export function resolveSelectedMove(
+  engineMove: string | null,
+  candidates: string[],
+  rng: () => number = Math.random
+): SelectedMove | null {
+  if (candidates.length === 0) return null;
+
+  if (engineMove && candidates.includes(engineMove)) {
+    return { lan: engineMove, fallback: false };
+  }
+
+  // Math.min guards against an rng returning exactly 1.
+  const index = Math.min(
+    Math.floor(rng() * candidates.length),
+    candidates.length - 1
+  );
+  return { lan: candidates[index], fallback: true };
+}
+
 export interface GameOverResult {
   isOver: boolean;
   reason?: string;

@@ -11,6 +11,7 @@ import {
   shouldFinalizeTurn as checkShouldFinalize,
   calculateIncrement,
   detectGameOver,
+  resolveSelectedMove,
 } from "../core/turnLogic.js";
 import { shouldEndDueToAbandonment } from "../core/playerLogic.js";
 
@@ -98,7 +99,20 @@ export function tryFinalizeTurn(ctx: IGameContext = globalContext): void {
   const currentFen = gameState.chess.fen();
 
   chooseBestMove(gameState.engine, currentFen, candidatesStr)
-    .then((selLan) => {
+    .then((engineMove) => {
+      const selected = resolveSelectedMove(engineMove, candidatesStr);
+
+      if (!selected) {
+        // Nothing to play: hand the turn back instead of freezing on FinalizingTurn.
+        gameState.status = GameStatus.AwaitingProposals;
+        io.emit("game_status_update", { status: gameState.status });
+        startClock(ctx);
+        return;
+      }
+
+      if (selected.fallback) sendSystemMessage(MSG.engineFallback, ctx);
+
+      const selLan = selected.lan;
       const from = selLan.slice(0, 2);
       const to = selLan.slice(2, 4);
 

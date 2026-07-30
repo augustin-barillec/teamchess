@@ -65,6 +65,8 @@ export const MSG = {
   // Game flow
   systemError:
     "⚠️ System error: move could not be processed. Please resubmit your moves.",
+  engineFallback:
+    "⚠️ Stockfish could not pick a move — a proposal was played at random.",
 
   // Error messages (sent to individual sockets)
   errorNotEligible: "You are not eligible to vote.",

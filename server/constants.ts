@@ -2,6 +2,8 @@ import path from "path";
 
 export const DISCONNECT_GRACE_MS = 20000;
 export const STOCKFISH_SEARCH_DEPTH = 15;
+/** How long a search may run before the engine is considered unusable for this turn. */
+export const ENGINE_MOVE_TIMEOUT_MS = 10000;
 export const TEAM_VOTE_DURATION_MS = 20000;
 export const KICK_VOTE_DURATION_MS = 20000;
 export const RESET_VOTE_DURATION_MS = 20000;
