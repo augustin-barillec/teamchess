@@ -11,12 +11,15 @@ export type Session = {
   reconnectTimer?: NodeJS.Timeout;
 };
 
+// `eligibleVoters` is the vote's frozen electorate: pid -> name as of vote creation.
+// See core/voteLogic.ts. Never mutate it or `required` on an in-flight vote.
+
 export interface InternalVoteState {
   type: VoteType;
   initiatorId: string;
   yesVoters: Set<string>;
-  eligibleVoters: Set<string>;
-  required: number;
+  readonly eligibleVoters: ReadonlyMap<string, string>;
+  readonly required: number;
   timer: NodeJS.Timeout;
   endTime: number;
 }
@@ -27,9 +30,9 @@ export interface InternalKickVoteState {
   initiatorId: string;
   yesVoters: Set<string>;
   noVoters: Set<string>;
-  eligibleVoters: Set<string>;
-  required: number;
-  total: number;
+  readonly eligibleVoters: ReadonlyMap<string, string>;
+  readonly required: number;
+  readonly total: number;
   timer: NodeJS.Timeout;
   endTime: number;
 }
@@ -38,9 +41,9 @@ export interface InternalResetVoteState {
   initiatorId: string;
   yesVoters: Set<string>;
   noVoters: Set<string>;
-  eligibleVoters: Set<string>;
-  required: number;
-  total: number;
+  readonly eligibleVoters: ReadonlyMap<string, string>;
+  readonly required: number;
+  readonly total: number;
   timer: NodeJS.Timeout;
   endTime: number;
 }

@@ -8,7 +8,7 @@ import {
   createResetVoteState,
 } from "../core/resetVoteLogic.js";
 import { MSG } from "../shared_messages.js";
-import { voterNames, currentVoteOf } from "./voteHelpers.js";
+import { rosterOf, voterNames, currentVoteOf } from "./voteHelpers.js";
 
 /**
  * Gets reset vote data formatted for a specific client.
@@ -18,7 +18,7 @@ export function getResetVoteClientData(
   viewerPid: string,
   ctx: IGameContext = globalContext
 ): ResetVoteState {
-  const { gameState, sessions } = ctx;
+  const { gameState } = ctx;
   const vote = gameState.resetVote;
 
   if (!vote) {
@@ -36,8 +36,8 @@ export function getResetVoteClientData(
 
   return {
     isActive: true,
-    yesVotes: voterNames(vote.yesVoters, sessions),
-    noVotes: voterNames(vote.noVoters, sessions),
+    yesVotes: voterNames(vote.yesVoters, vote.eligibleVoters),
+    noVotes: voterNames(vote.noVoters, vote.eligibleVoters),
     requiredVotes: vote.required,
     totalVoters: vote.total,
     endTime: vote.endTime,
@@ -99,8 +99,9 @@ export function startResetVoteLogic(
     return { error: prereq.reason };
   }
 
-  const allConnectedPids = ctx.getOnlinePids();
-  const pureState = createResetVoteState(initiatorId, allConnectedPids);
+  // Snapshot all connected players (pid -> name) as the vote's frozen electorate
+  const allConnected = rosterOf(ctx.getOnlinePids(), ctx.sessions);
+  const pureState = createResetVoteState(initiatorId, allConnected);
 
   // Solo player: 1/1 = majority, pass immediately
   if (pureState.yesVoters.size >= pureState.required) {

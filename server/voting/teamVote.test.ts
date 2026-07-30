@@ -6,6 +6,10 @@ import {
 } from "./teamVote.js";
 import { MockGameContext } from "../context/MockGameContext.js";
 
+/** Frozen-electorate fixture: the pid -> name snapshot a vote carries. */
+const roster = (...pids: string[]): Map<string, string> =>
+  new Map(pids.map((pid) => [pid, `name-${pid}`]));
+
 describe("teamVote", () => {
   describe("getTeamVoteClientData", () => {
     it("returns myVoteEligible false when no active vote", () => {
@@ -24,7 +28,7 @@ describe("teamVote", () => {
           type: "resign",
           initiatorId: "p1",
           yesVoters: new Set(["p1"]),
-          eligibleVoters: new Set(["p1", "p2"]),
+          eligibleVoters: roster("p1", "p2"),
           required: 2,
           timer: setTimeout(() => {}, 0),
           endTime: Date.now() + 20000,
@@ -47,7 +51,7 @@ describe("teamVote", () => {
           type: "resign",
           initiatorId: "p1",
           yesVoters: new Set(["p1"]),
-          eligibleVoters: new Set(["p1", "p2"]),
+          eligibleVoters: roster("p1", "p2"),
           required: 2,
           timer: setTimeout(() => {}, 0),
           endTime: Date.now() + 20000,
@@ -64,6 +68,25 @@ describe("teamVote", () => {
 
       clearTimeout(ctx.gameState.whiteVote!.timer);
     });
+
+    it("still names a yes voter whose session is gone", () => {
+      // Alice opens the vote (auto-yes) then vanishes: disconnect grace expired, or
+      // kicked. Her yes still counts, so she must still be named — the electorate is
+      // frozen, and names come from it rather than from the live sessions map.
+      const ctx = new MockGameContext();
+      ctx.addPlayer("p1", "Alice", "white");
+      ctx.addPlayer("p2", "Bob", "white");
+
+      startTeamVoteLogic("white", "resign", "p1", ctx);
+      ctx.removePlayer("p1");
+
+      const data = getTeamVoteClientData("white", "p2", ctx);
+
+      expect(data.yesVotes).toEqual(["Alice"]);
+      expect(data.requiredVotes).toBe(2);
+
+      clearTimeout(ctx.gameState.whiteVote!.timer);
+    });
   });
 
   describe("broadcastTeamVote", () => {
@@ -73,7 +96,7 @@ describe("teamVote", () => {
           type: "resign",
           initiatorId: "p1",
           yesVoters: new Set(["p1"]),
-          eligibleVoters: new Set(["p1", "p2"]),
+          eligibleVoters: roster("p1", "p2"),
           required: 2,
           timer: setTimeout(() => {}, 0),
           endTime: Date.now() + 20000,

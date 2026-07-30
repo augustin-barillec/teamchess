@@ -6,6 +6,10 @@ import {
 } from "./resetVoteLogic.js";
 import { MSG } from "../shared_messages.js";
 
+/** Frozen-electorate fixture: the pid -> name snapshot a vote carries. */
+const roster = (...pids: string[]): Map<string, string> =>
+  new Map(pids.map((pid) => [pid, `name-${pid}`]));
+
 describe("resetVoteLogic", () => {
   describe("checkResetVotePrerequisites", () => {
     it("allows reset vote when no vote in progress", () => {
@@ -18,7 +22,7 @@ describe("resetVoteLogic", () => {
         initiatorId: "p1",
         yesVoters: new Set(["p1"]),
         noVoters: new Set<string>(),
-        eligibleVoters: new Set(["p1", "p2"]),
+        eligibleVoters: roster("p1", "p2"),
         required: 2,
         total: 2,
       };
@@ -31,7 +35,7 @@ describe("resetVoteLogic", () => {
 
   describe("createResetVoteState", () => {
     it("sets required to strict majority (floor(N/2) + 1)", () => {
-      const allPids = new Set(["p1", "p2", "p3"]);
+      const allPids = roster("p1", "p2", "p3");
       const result = createResetVoteState("p1", allPids);
 
       expect(result.required).toBe(2);
@@ -39,7 +43,7 @@ describe("resetVoteLogic", () => {
     });
 
     it("computes majority correctly for even number of voters", () => {
-      const allPids = new Set(["p1", "p2", "p3", "p4"]);
+      const allPids = roster("p1", "p2", "p3", "p4");
       const result = createResetVoteState("p1", allPids);
 
       expect(result.required).toBe(3);
@@ -47,7 +51,7 @@ describe("resetVoteLogic", () => {
     });
 
     it("includes all connected PIDs as eligible", () => {
-      const allPids = new Set(["p1", "p2", "p3"]);
+      const allPids = roster("p1", "p2", "p3");
       const result = createResetVoteState("p1", allPids);
 
       expect(result.eligibleVoters.size).toBe(3);
@@ -57,7 +61,7 @@ describe("resetVoteLogic", () => {
     });
 
     it("auto-votes yes for initiator", () => {
-      const allPids = new Set(["p1", "p2", "p3"]);
+      const allPids = roster("p1", "p2", "p3");
       const result = createResetVoteState("p1", allPids);
 
       expect(result.yesVoters.has("p1")).toBe(true);
@@ -65,22 +69,22 @@ describe("resetVoteLogic", () => {
     });
 
     it("initializes noVoters as empty", () => {
-      const allPids = new Set(["p1", "p2", "p3"]);
+      const allPids = roster("p1", "p2", "p3");
       const result = createResetVoteState("p1", allPids);
 
       expect(result.noVoters.size).toBe(0);
     });
 
     it("creates independent copies (mutation safety)", () => {
-      const allPids = new Set(["p1", "p2"]);
+      const allPids = roster("p1", "p2");
       const result = createResetVoteState("p1", allPids);
 
-      allPids.add("p3");
+      allPids.set("p3", "name-p3");
       expect(result.eligibleVoters.size).toBe(2);
     });
 
     it("passes immediately when initiator is the only connected user", () => {
-      const allPids = new Set(["p1"]);
+      const allPids = roster("p1");
       const result = createResetVoteState("p1", allPids);
 
       expect(result.required).toBe(1);
@@ -98,7 +102,7 @@ describe("resetVoteLogic", () => {
         initiatorId: "p1",
         yesVoters: new Set(["p1"]),
         noVoters: new Set<string>(),
-        eligibleVoters: new Set(["p1", "p2", "p3"]),
+        eligibleVoters: roster("p1", "p2", "p3"),
         required: 2,
         total: 3,
         ...overrides,
@@ -134,7 +138,7 @@ describe("resetVoteLogic", () => {
     it("records yes vote without passing when below threshold", () => {
       // 4 voters, required=3, p1 voted yes → p2 votes yes → 2/3 → not enough
       const vote = makeVote({
-        eligibleVoters: new Set(["p1", "p2", "p3", "p4"]),
+        eligibleVoters: roster("p1", "p2", "p3", "p4"),
         required: 3,
         total: 4,
       });
@@ -198,7 +202,7 @@ describe("resetVoteLogic", () => {
     it("allows switching from no to yes", () => {
       // 4 voters, required=3, p1 voted yes, p2 voted no → p2 switches to yes → 2/3 → not pass yet
       const vote = makeVote({
-        eligibleVoters: new Set(["p1", "p2", "p3", "p4"]),
+        eligibleVoters: roster("p1", "p2", "p3", "p4"),
         required: 3,
         total: 4,
         noVoters: new Set(["p2"]),

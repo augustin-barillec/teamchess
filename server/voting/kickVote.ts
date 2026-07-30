@@ -8,7 +8,7 @@ import {
   createKickVoteState,
 } from "../core/kickVoteLogic.js";
 import { MSG } from "../shared_messages.js";
-import { voterNames, currentVoteOf } from "./voteHelpers.js";
+import { rosterOf, voterNames, currentVoteOf } from "./voteHelpers.js";
 
 /**
  * Gets kick vote data formatted for a specific client.
@@ -18,7 +18,7 @@ export function getKickVoteClientData(
   viewerPid: string,
   ctx: IGameContext = globalContext
 ): KickVoteState {
-  const { gameState, sessions } = ctx;
+  const { gameState } = ctx;
   const vote = gameState.kickVote;
 
   if (!vote) {
@@ -41,8 +41,8 @@ export function getKickVoteClientData(
     isActive: true,
     targetId: vote.targetId,
     targetName: vote.targetName,
-    yesVotes: voterNames(vote.yesVoters, sessions),
-    noVotes: voterNames(vote.noVoters, sessions),
+    yesVotes: voterNames(vote.yesVoters, vote.eligibleVoters),
+    noVotes: voterNames(vote.noVoters, vote.eligibleVoters),
     requiredVotes: vote.required,
     totalVoters: vote.total,
     endTime: vote.endTime,
@@ -109,14 +109,10 @@ export function startKickVoteLogic(
     return { error: prereq.reason };
   }
 
-  // Snapshot all connected PIDs
-  const allConnectedPids = ctx.getOnlinePids();
+  // Snapshot all connected players (pid -> name) as the vote's frozen electorate
+  const allConnected = rosterOf(ctx.getOnlinePids(), ctx.sessions);
 
-  const pureState = createKickVoteState(
-    targetId,
-    initiatorId,
-    allConnectedPids
-  );
+  const pureState = createKickVoteState(targetId, initiatorId, allConnected);
   const endTime = Date.now() + KICK_VOTE_DURATION_MS;
 
   const voteState: InternalKickVoteState = {

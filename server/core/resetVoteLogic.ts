@@ -1,13 +1,15 @@
 import { MSG } from "../shared_messages.js";
 import { processMajorityVote, type MajorityVoteResult } from "./voteLogic.js";
 
+/** Frozen electorate, as in {@link import("./voteLogic.js").VoteState}: `eligibleVoters`
+ * carries each voter's name as of vote creation and never changes afterwards. */
 export interface ResetVoteState {
   initiatorId: string;
   yesVoters: Set<string>;
   noVoters: Set<string>;
-  eligibleVoters: Set<string>;
-  required: number;
-  total: number;
+  readonly eligibleVoters: ReadonlyMap<string, string>;
+  readonly required: number;
+  readonly total: number;
 }
 
 export interface ResetVotePrerequisiteResult {
@@ -39,9 +41,9 @@ export function checkResetVotePrerequisites(
  */
 export function createResetVoteState(
   initiatorId: string,
-  allConnectedPids: Set<string>
+  allConnected: ReadonlyMap<string, string>
 ): ResetVoteState {
-  const eligibleVoters = new Set(allConnectedPids);
+  const eligibleVoters = new Map(allConnected);
   const N = eligibleVoters.size;
   const required = Math.floor(N / 2) + 1;
 

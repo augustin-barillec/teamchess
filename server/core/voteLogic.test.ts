@@ -6,6 +6,10 @@ import {
 } from "./voteLogic.js";
 import { formatVoteType } from "../shared_messages.js";
 
+/** Frozen-electorate fixture: the pid -> name snapshot a vote carries. */
+const roster = (...pids: string[]): Map<string, string> =>
+  new Map(pids.map((pid) => [pid, `name-${pid}`]));
+
 describe("voteLogic", () => {
   describe("checkVotePrerequisites", () => {
     it("rejects accept_draw when no draw offer exists", () => {
@@ -68,7 +72,7 @@ describe("voteLogic", () => {
         type: "resign" as const,
         initiatorId: "p1",
         yesVoters: new Set(["p1"]),
-        eligibleVoters: new Set(["p1", "p2"]),
+        eligibleVoters: roster("p1", "p2"),
         required: 2,
       };
 
@@ -133,7 +137,7 @@ describe("voteLogic", () => {
         type: "resign" as const,
         initiatorId: "p1",
         yesVoters: new Set(["p1"]),
-        eligibleVoters: new Set(["p1", "p2"]),
+        eligibleVoters: roster("p1", "p2"),
         required: 2,
       };
 
@@ -149,7 +153,7 @@ describe("voteLogic", () => {
         type: "resign" as const,
         initiatorId: "p1",
         yesVoters: new Set(["p1"]),
-        eligibleVoters: new Set(["p1", "p2"]),
+        eligibleVoters: roster("p1", "p2"),
         required: 2,
       };
 
@@ -164,7 +168,7 @@ describe("voteLogic", () => {
         type: "resign" as const,
         initiatorId: "p1",
         yesVoters: new Set(["p1"]),
-        eligibleVoters: new Set(["p1", "p2", "p3"]),
+        eligibleVoters: roster("p1", "p2", "p3"),
         required: 3,
       };
 
@@ -181,7 +185,7 @@ describe("voteLogic", () => {
         type: "resign" as const,
         initiatorId: "p1",
         yesVoters: new Set(["p1"]),
-        eligibleVoters: new Set(["p1", "p2"]),
+        eligibleVoters: roster("p1", "p2"),
         required: 2,
       };
 
@@ -198,7 +202,7 @@ describe("voteLogic", () => {
         type: "resign" as const,
         initiatorId: "p1",
         yesVoters: originalYesVoters,
-        eligibleVoters: new Set(["p1", "p2"]),
+        eligibleVoters: roster("p1", "p2"),
         required: 2,
       };
 
@@ -211,7 +215,7 @@ describe("voteLogic", () => {
 
   describe("createVoteState", () => {
     it("creates vote state with initiator yes vote when player triggered", () => {
-      const eligible = new Set(["p1", "p2", "p3"]);
+      const eligible = roster("p1", "p2", "p3");
       const result = createVoteState("resign", "p1", eligible, false);
 
       expect(result.type).toBe("resign");
@@ -223,7 +227,7 @@ describe("voteLogic", () => {
     });
 
     it("creates vote state with no initial yes votes when system triggered", () => {
-      const eligible = new Set(["p1", "p2", "p3"]);
+      const eligible = roster("p1", "p2", "p3");
       const result = createVoteState("accept_draw", "system", eligible, true);
 
       expect(result.yesVoters.size).toBe(0);
@@ -231,10 +235,10 @@ describe("voteLogic", () => {
     });
 
     it("creates independent copy of eligible voters", () => {
-      const eligible = new Set(["p1", "p2"]);
+      const eligible = roster("p1", "p2");
       const result = createVoteState("resign", "p1", eligible, false);
 
-      eligible.add("p3"); // Modify original
+      eligible.set("p3", "name-p3"); // Modify original
 
       expect(result.eligibleVoters.size).toBe(2); // Copy not affected
     });

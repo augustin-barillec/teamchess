@@ -1,14 +1,16 @@
 import { MSG } from "../shared_messages.js";
 import { processMajorityVote, type MajorityVoteResult } from "./voteLogic.js";
 
+/** Frozen electorate, as in {@link import("./voteLogic.js").VoteState}: `eligibleVoters`
+ * carries each voter's name as of vote creation and never changes afterwards. */
 export interface KickVoteState {
   targetId: string;
   initiatorId: string;
   yesVoters: Set<string>;
   noVoters: Set<string>;
-  eligibleVoters: Set<string>;
-  required: number;
-  total: number;
+  readonly eligibleVoters: ReadonlyMap<string, string>;
+  readonly required: number;
+  readonly total: number;
 }
 
 export interface KickVotePrerequisiteResult {
@@ -47,13 +49,13 @@ export function checkKickVotePrerequisites(
 export function createKickVoteState(
   targetId: string,
   initiatorId: string,
-  allConnectedPids: Set<string>
+  allConnected: ReadonlyMap<string, string>
 ): KickVoteState {
-  const N = allConnectedPids.size;
+  const N = allConnected.size;
   const required = Math.floor(N / 2) + 1;
 
   // Eligible = all connected except the target
-  const eligibleVoters = new Set(allConnectedPids);
+  const eligibleVoters = new Map(allConnected);
   eligibleVoters.delete(targetId);
 
   // Initiator automatically votes yes

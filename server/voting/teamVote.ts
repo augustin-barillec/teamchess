@@ -6,7 +6,7 @@ import { TEAM_VOTE_DURATION_MS } from "../constants.js";
 import { sendSystemMessage } from "../utils/messaging.js";
 import { checkVotePrerequisites, createVoteState } from "../core/voteLogic.js";
 import { MSG } from "../shared_messages.js";
-import { voterNames } from "./voteHelpers.js";
+import { rosterOf, voterNames } from "./voteHelpers.js";
 
 // Callback for ending the game (set by gameLogic to avoid circular dependency)
 let endGameCallback: ((reason: string, winner: string | null) => void) | null =
@@ -27,7 +27,7 @@ export function getTeamVoteClientData(
   viewerPid: string,
   ctx: IGameContext = globalContext
 ) {
-  const { gameState, sessions } = ctx;
+  const { gameState } = ctx;
   const vote = side === "white" ? gameState.whiteVote : gameState.blackVote;
   if (!vote) {
     return {
@@ -43,7 +43,7 @@ export function getTeamVoteClientData(
   return {
     isActive: true,
     type: vote.type,
-    yesVotes: voterNames(vote.yesVoters, sessions),
+    yesVotes: voterNames(vote.yesVoters, vote.eligibleVoters),
     requiredVotes: vote.required,
     endTime: vote.endTime,
     myVoteEligible: vote.eligibleVoters.has(viewerPid),
@@ -92,15 +92,15 @@ export function startTeamVoteLogic(
   initiatorId: string,
   ctx: IGameContext = globalContext
 ): void {
-  const { gameState, io } = ctx;
+  const { gameState, io, sessions } = ctx;
 
   const currentVote =
     side === "white" ? gameState.whiteVote : gameState.blackVote;
   const isSystemTriggered = initiatorId === "system";
 
-  // Get connected team members
-  const connectedTeamPids = ctx.getActiveTeamPids(side);
-  const N = connectedTeamPids.size;
+  // Snapshot connected team members (pid -> name) as the vote's frozen electorate
+  const teamRoster = rosterOf(ctx.getActiveTeamPids(side), sessions);
+  const N = teamRoster.size;
 
   // Use pure logic to check prerequisites
   const prereqResult = checkVotePrerequisites(
@@ -147,7 +147,7 @@ export function startTeamVoteLogic(
   const pureVoteState = createVoteState(
     type,
     initiatorId,
-    connectedTeamPids,
+    teamRoster,
     isSystemTriggered
   );
 

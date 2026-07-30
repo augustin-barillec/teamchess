@@ -1,12 +1,19 @@
 import type { VoteType } from "../shared_types.js";
 import type { PlayerSide } from "../types.js";
 
+/**
+ * The electorate is frozen when the vote is created: `eligibleVoters` maps every voter to
+ * the name they had at that instant, and neither it nor `required` changes afterwards,
+ * whoever joins or leaves. Unanimity is always measured against the roster at the moment
+ * the vote started — and a voter who leaves mid-vote keeps both their recorded yes and the
+ * name the vote recorded for them.
+ */
 export interface VoteState {
   type: VoteType;
   initiatorId: string;
   yesVoters: Set<string>;
-  eligibleVoters: Set<string>;
-  required: number;
+  readonly eligibleVoters: ReadonlyMap<string, string>;
+  readonly required: number;
 }
 
 export interface VotePrerequisiteResult {
@@ -91,7 +98,7 @@ export function processVote(
 export interface MajorityVoteInput {
   yesVoters: Set<string>;
   noVoters: Set<string>;
-  eligibleVoters: Set<string>;
+  eligibleVoters: ReadonlyMap<string, string>;
   required: number;
 }
 
@@ -168,9 +175,9 @@ export function processMajorityVote(
 export function createVoteState(
   type: VoteType,
   initiatorId: string,
-  eligibleVoters: Set<string>,
+  eligibleVoters: ReadonlyMap<string, string>,
   isSystemTriggered: boolean
-): Omit<VoteState, "required"> & { required: number } {
+): VoteState {
   const initialYes = isSystemTriggered
     ? new Set<string>()
     : new Set([initiatorId]);
@@ -179,7 +186,7 @@ export function createVoteState(
     type,
     initiatorId,
     yesVoters: initialYes,
-    eligibleVoters: new Set(eligibleVoters),
+    eligibleVoters: new Map(eligibleVoters),
     required: eligibleVoters.size,
   };
 }

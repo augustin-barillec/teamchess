@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { startResetVoteLogic } from "./resetVote.js";
+import { getResetVoteClientData, startResetVoteLogic } from "./resetVote.js";
 import { MockGameContext } from "../context/MockGameContext.js";
 
 describe("startResetVoteLogic", () => {
@@ -23,6 +23,22 @@ describe("startResetVoteLogic", () => {
     expect(result.passedImmediately).toBeUndefined();
     expect(result.error).toBeUndefined();
     expect(ctx.gameState.resetVote).toBeDefined();
+
+    clearTimeout(ctx.gameState.resetVote!.timer);
+  });
+
+  it("still names a yes voter whose session is gone", () => {
+    const ctx = new MockGameContext();
+    ctx.addPlayer("p1", "Alice", "white");
+    ctx.addPlayer("p2", "Bob", "black");
+    ctx.addPlayer("p3", "Carol", "black");
+
+    startResetVoteLogic("p1", ctx);
+    ctx.removePlayer("p1");
+
+    const data = getResetVoteClientData("p2", ctx);
+
+    expect(data.yesVotes).toEqual(["Alice"]);
 
     clearTimeout(ctx.gameState.resetVote!.timer);
   });

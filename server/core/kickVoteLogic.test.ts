@@ -6,6 +6,10 @@ import {
 } from "./kickVoteLogic.js";
 import { MSG } from "../shared_messages.js";
 
+/** Frozen-electorate fixture: the pid -> name snapshot a vote carries. */
+const roster = (...pids: string[]): Map<string, string> =>
+  new Map(pids.map((pid) => [pid, `name-${pid}`]));
+
 describe("kickVoteLogic", () => {
   describe("checkKickVotePrerequisites", () => {
     it("allows kick vote when no vote in progress", () => {
@@ -19,7 +23,7 @@ describe("kickVoteLogic", () => {
         initiatorId: "p1",
         yesVoters: new Set(["p1"]),
         noVoters: new Set<string>(),
-        eligibleVoters: new Set(["p1", "p2"]),
+        eligibleVoters: roster("p1", "p2"),
         required: 2,
         total: 3,
       };
@@ -39,7 +43,7 @@ describe("kickVoteLogic", () => {
   describe("createKickVoteState", () => {
     it("calculates strict majority threshold for odd N", () => {
       // N=5 → threshold = floor(5/2) + 1 = 3
-      const allPids = new Set(["p1", "p2", "p3", "p4", "p5"]);
+      const allPids = roster("p1", "p2", "p3", "p4", "p5");
       const result = createKickVoteState("p5", "p1", allPids);
 
       expect(result.required).toBe(3);
@@ -48,7 +52,7 @@ describe("kickVoteLogic", () => {
 
     it("calculates strict majority threshold for even N", () => {
       // N=4 → threshold = floor(4/2) + 1 = 3
-      const allPids = new Set(["p1", "p2", "p3", "p4"]);
+      const allPids = roster("p1", "p2", "p3", "p4");
       const result = createKickVoteState("p4", "p1", allPids);
 
       expect(result.required).toBe(3);
@@ -57,7 +61,7 @@ describe("kickVoteLogic", () => {
 
     it("calculates threshold for N=2", () => {
       // N=2 → threshold = floor(2/2) + 1 = 2
-      const allPids = new Set(["p1", "p2"]);
+      const allPids = roster("p1", "p2");
       const result = createKickVoteState("p2", "p1", allPids);
 
       expect(result.required).toBe(2);
@@ -66,7 +70,7 @@ describe("kickVoteLogic", () => {
 
     it("calculates threshold for N=3", () => {
       // N=3 → threshold = floor(3/2) + 1 = 2
-      const allPids = new Set(["p1", "p2", "p3"]);
+      const allPids = roster("p1", "p2", "p3");
       const result = createKickVoteState("p3", "p1", allPids);
 
       expect(result.required).toBe(2);
@@ -74,7 +78,7 @@ describe("kickVoteLogic", () => {
     });
 
     it("excludes target from eligible voters", () => {
-      const allPids = new Set(["p1", "p2", "p3"]);
+      const allPids = roster("p1", "p2", "p3");
       const result = createKickVoteState("p3", "p1", allPids);
 
       expect(result.eligibleVoters.has("p3")).toBe(false);
@@ -84,7 +88,7 @@ describe("kickVoteLogic", () => {
     });
 
     it("auto-votes yes for initiator", () => {
-      const allPids = new Set(["p1", "p2", "p3"]);
+      const allPids = roster("p1", "p2", "p3");
       const result = createKickVoteState("p3", "p1", allPids);
 
       expect(result.yesVoters.has("p1")).toBe(true);
@@ -92,14 +96,14 @@ describe("kickVoteLogic", () => {
     });
 
     it("initializes noVoters as empty", () => {
-      const allPids = new Set(["p1", "p2", "p3"]);
+      const allPids = roster("p1", "p2", "p3");
       const result = createKickVoteState("p3", "p1", allPids);
 
       expect(result.noVoters.size).toBe(0);
     });
 
     it("target contributes to total N but not eligible", () => {
-      const allPids = new Set(["p1", "p2", "p3"]);
+      const allPids = roster("p1", "p2", "p3");
       const result = createKickVoteState("p3", "p1", allPids);
 
       expect(result.total).toBe(3);
@@ -107,10 +111,10 @@ describe("kickVoteLogic", () => {
     });
 
     it("creates independent copy of eligible voters", () => {
-      const allPids = new Set(["p1", "p2", "p3"]);
+      const allPids = roster("p1", "p2", "p3");
       const result = createKickVoteState("p3", "p1", allPids);
 
-      allPids.add("p4");
+      allPids.set("p4", "name-p4");
       expect(result.eligibleVoters.size).toBe(2);
     });
   });
@@ -124,7 +128,7 @@ describe("kickVoteLogic", () => {
         initiatorId: "p1",
         yesVoters: new Set(["p1"]),
         noVoters: new Set<string>(),
-        eligibleVoters: new Set(["p1", "p2", "p3", "p4"]),
+        eligibleVoters: roster("p1", "p2", "p3", "p4"),
         required: 3,
         total: 5,
         ...overrides,
