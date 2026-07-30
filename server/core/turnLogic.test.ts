@@ -8,9 +8,7 @@ import {
 import {
   shouldFinalizeTurn,
   calculateIncrement,
-  validateAndApplyMove,
   detectGameOver,
-  getOppositeSide,
   resolveSelectedMove,
 } from "./turnLogic.js";
 import { GameStatus } from "../shared_types.js";
@@ -149,43 +147,6 @@ describe("turnLogic", () => {
     });
   });
 
-  describe("validateAndApplyMove", () => {
-    it("applies a valid move successfully", () => {
-      const chess = new Chess();
-      const result = validateAndApplyMove(chess, "e2e4");
-
-      expect(result.success).toBe(true);
-      expect(result.san).toBe("e4");
-      expect(result.fen).toBe(chess.fen());
-      // Verify pawn moved to e4 (the FEN shows this as "4P3" in the 4th rank)
-      expect(chess.fen()).toContain("4P3");
-    });
-
-    it("handles promotion moves", () => {
-      // Position with pawn ready to promote (kings far away, no check)
-      const chess = new Chess("8/P7/8/8/8/8/7k/K7 w - - 0 1");
-      const result = validateAndApplyMove(chess, "a7a8q");
-
-      expect(result.success).toBe(true);
-      expect(result.san).toBe("a8=Q");
-    });
-
-    it("returns error for illegal move", () => {
-      const chess = new Chess();
-      const result = validateAndApplyMove(chess, "e2e5"); // Can't move pawn 3 squares
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
-    });
-
-    it("returns error for invalid move format", () => {
-      const chess = new Chess();
-      const result = validateAndApplyMove(chess, "invalid");
-
-      expect(result.success).toBe(false);
-    });
-  });
-
   describe("detectGameOver", () => {
     it("returns isOver false for ongoing game", () => {
       const chess = new Chess();
@@ -256,16 +217,6 @@ describe("turnLogic", () => {
       expect(result.isOver).toBe(true);
       expect(result.reason).toBe("insufficient material");
       expect(result.winner).toBeNull();
-    });
-  });
-
-  describe("getOppositeSide", () => {
-    it("returns black for white", () => {
-      expect(getOppositeSide("white")).toBe("black");
-    });
-
-    it("returns white for black", () => {
-      expect(getOppositeSide("black")).toBe("white");
     });
   });
 

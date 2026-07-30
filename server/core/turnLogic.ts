@@ -42,34 +42,6 @@ export function calculateIncrement(currentTime: number): number {
   return currentTime <= INCREMENT_THRESHOLD ? TIME_INCREMENT : 0;
 }
 
-export interface MoveResult {
-  success: boolean;
-  error?: string;
-  san?: string;
-  fen?: string;
-}
-
-/**
- * Validates and applies a move to a chess instance.
- * Pure function - operates on provided chess instance.
- */
-export function validateAndApplyMove(chess: Chess, lan: string): MoveResult {
-  try {
-    const from = lan.slice(0, 2);
-    const to = lan.slice(2, 4);
-    const params: { from: string; to: string; promotion?: string } = {
-      from,
-      to,
-    };
-    if (lan.length === 5) params.promotion = lan[4];
-
-    const move = chess.move(params);
-    return { success: true, san: move.san, fen: chess.fen() };
-  } catch {
-    return { success: false, error: "Move error" };
-  }
-}
-
 export interface SelectedMove {
   lan: string;
   /** True when the engine could not be trusted and a candidate was drawn at random. */
@@ -134,11 +106,4 @@ export function detectGameOver(
     return { isOver: true, reason: EndReason.Insufficient, winner: null };
   }
   return { isOver: true, reason: EndReason.DrawRule, winner: null };
-}
-
-/**
- * Gets the opposite side.
- */
-export function getOppositeSide(side: PlayerSide): PlayerSide {
-  return side === "white" ? "black" : "white";
 }
