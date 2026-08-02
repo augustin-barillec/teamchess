@@ -922,6 +922,109 @@ test.describe("Voting", () => {
     await expect(p3Yes).toBeEnabled();
     await expect(p3No).toBeEnabled();
   });
+
+  test("only_one_vote_at_a_time", async ({ browser }, testInfo) => {
+    const [player1, player2, player3] = await setupPlayers(
+      browser,
+      testInfo,
+      3
+    );
+    // Player 1 → White, Player 2 + 3 → Black
+    await joinTeam(player1, "white");
+    await joinTeam(player2, "black");
+    await joinTeam(player3, "black");
+
+    // Start game
+    await makeMove(player1, "e2", "e4");
+    await player1.waitForTimeout(1000);
+
+    // Sanity: while no vote is active, vote triggers are available
+    await expect(player1.locator('button[aria-label="Reset"]')).toBeVisible();
+    await expect(
+      player1.locator('.players-panel button:has-text("Kick")')
+    ).toHaveCount(2);
+
+    // Player 2 starts a resign vote (auto-votes yes as initiator)
+    await player2.click('button[aria-label="Resign"]');
+    await player2.waitForTimeout(500);
+
+    // The single shared banner is visible to everyone — including White…
+    await expect(player1.locator(".vote-banner")).toBeVisible();
+    await expect(player1.locator(".vote-banner-title")).toContainText("Resign");
+    // …but White is not in the frozen electorate: buttons disabled
+    await expect(player1.locator('button:has-text("Yes")')).toBeDisabled();
+    await expect(player1.locator('button:has-text("No")')).toBeDisabled();
+
+    // While the vote is active, every other vote trigger is hidden:
+    // reset icon and kick buttons (P1), resign/draw icons (P3, same team)
+    await expect(
+      player1.locator('button[aria-label="Reset"]')
+    ).not.toBeVisible();
+    await expect(
+      player1.locator('.players-panel button:has-text("Kick")')
+    ).toHaveCount(0);
+    await expect(
+      player3.locator('button[aria-label="Resign"]')
+    ).not.toBeVisible();
+    await expect(
+      player3.locator('button[aria-label="Offer Draw"]')
+    ).not.toBeVisible();
+
+    // Player 3 votes No — a unanimity vote fails instantly
+    await player3.click('button:has-text("No")');
+    await player3.waitForTimeout(1000);
+
+    // Banner gone, all vote triggers are back
+    await expect(player1.locator(".vote-banner")).not.toBeVisible();
+    await expect(player1.locator('button[aria-label="Reset"]')).toBeVisible();
+    await expect(player3.locator('button[aria-label="Resign"]')).toBeVisible();
+    await expect(
+      player1.locator('.players-panel button:has-text("Kick")')
+    ).toHaveCount(2);
+  });
+
+  test("kick_vote_rejected_in_shared_banner", async ({ browser }, testInfo) => {
+    const [player1, player2, player3] = await setupPlayers(
+      browser,
+      testInfo,
+      3
+    );
+    // Player 1 starts a kick vote against player 3 (all default-named "Player")
+    const kickButtons = player1.locator(
+      '.players-panel button:has-text("Kick")'
+    );
+    await expect(kickButtons).toHaveCount(2, { timeout: 5000 });
+    await kickButtons.nth(1).click();
+    await player1.waitForTimeout(500);
+
+    // The kick vote lives in the shared banner: voters see the target's name…
+    await expect(player2.locator(".vote-banner-title")).toContainText(
+      "Vote: Kick Player"
+    );
+    // …and the target sees it addressed to them, with voting disabled
+    await expect(player3.locator(".vote-banner-title")).toContainText(
+      "Vote: Kick you"
+    );
+    await expect(player3.locator('button:has-text("Yes")')).toBeDisabled();
+    await expect(player3.locator('button:has-text("No")')).toBeDisabled();
+
+    // While the kick vote runs, nobody can start another one
+    await expect(
+      player2.locator('.players-panel button:has-text("Kick")')
+    ).toHaveCount(0);
+
+    // Player 2 votes No — majority (2/3) becomes impossible → vote fails
+    await player2.click('button:has-text("No")');
+    await player2.waitForTimeout(1000);
+
+    await expect(player1.locator(".vote-banner")).not.toBeVisible();
+    await expect(player1.locator(".chat-messages")).toContainText(
+      "Vote to kick Player failed"
+    );
+    // Player 3 was not kicked and the kick buttons are back
+    await expect(player3.locator(".offline-banner")).not.toBeVisible();
+    await expect(kickButtons).toHaveCount(2);
+  });
 });
 
 // ---------------------------------------------------------------------------
