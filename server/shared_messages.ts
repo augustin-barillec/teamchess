@@ -70,11 +70,9 @@ export const MSG = {
 
   // Error messages (sent to individual sockets)
   errorNotEligible: "You are not eligible to vote.",
-  errorJoinedLate: "You cannot vote — joined late.",
   errorTargetNotFound: "Target player not found.",
-  errorKickVoteInProgress: "A kick vote is already in progress",
+  errorVoteInProgress: "Another vote is already in progress.",
   errorCannotKickSelf: "You cannot vote to kick yourself",
-  errorResetVoteInProgress: "A reset vote is already in progress",
   errorOnlyWhiteStart: "Only the White team can start the game.",
   errorBothTeamsRequired: "Both teams must have at least one player to start.",
   errorNotAccepting: "Not accepting moves right now.",

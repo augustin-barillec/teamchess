@@ -9,9 +9,7 @@ import {
   Selection,
   ChatMessage,
   GameStatus,
-  TeamVoteState,
-  KickVoteState,
-  ResetVoteState,
+  ActiveVoteState,
 } from "../types";
 import { Turn } from "../types";
 import { STORAGE_KEYS } from "../constants";
@@ -49,9 +47,7 @@ interface UseSocketReturn {
   clocks: { whiteTime: number; blackTime: number };
   lastMoveSquares: { from: string; to: string } | null;
   drawOffer: "white" | "black" | null;
-  teamVote: TeamVoteState;
-  kickVote: KickVoteState;
-  resetVote: ResetVoteState;
+  activeVote: ActiveVoteState | null;
   hasUnreadMessages: boolean;
   setHasUnreadMessages: React.Dispatch<React.SetStateAction<boolean>>;
 }
@@ -94,37 +90,7 @@ export function useSocket({
     to: string;
   } | null>(null);
   const [drawOffer, setDrawOffer] = useState<"white" | "black" | null>(null);
-  const [teamVote, setTeamVote] = useState<TeamVoteState>({
-    isActive: false,
-    type: null,
-    yesVotes: [],
-    requiredVotes: 0,
-    endTime: 0,
-    myVoteEligible: false,
-  });
-  const [kickVote, setKickVote] = useState<KickVoteState>({
-    isActive: false,
-    targetId: null,
-    targetName: "",
-    yesVotes: [],
-    noVotes: [],
-    requiredVotes: 0,
-    totalVoters: 0,
-    endTime: 0,
-    myVoteEligible: false,
-    myCurrentVote: null,
-    amTarget: false,
-  });
-  const [resetVote, setResetVote] = useState<ResetVoteState>({
-    isActive: false,
-    yesVotes: [],
-    noVotes: [],
-    requiredVotes: 0,
-    totalVoters: 0,
-    endTime: 0,
-    myVoteEligible: false,
-    myCurrentVote: null,
-  });
+  const [activeVote, setActiveVote] = useState<ActiveVoteState | null>(null);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
 
   // Socket initialization
@@ -330,16 +296,8 @@ export function useSocket({
       }
     );
 
-    socket.on("team_vote_update", (state: TeamVoteState) => {
-      setTeamVote(state);
-    });
-
-    socket.on("kick_vote_update", (state: KickVoteState) => {
-      setKickVote(state);
-    });
-
-    socket.on("reset_vote_update", (state: ResetVoteState) => {
-      setResetVote(state);
+    socket.on("vote_update", (state: ActiveVoteState | null) => {
+      setActiveVote(state);
     });
 
     socket.on("kicked", () => {
@@ -370,9 +328,7 @@ export function useSocket({
     clocks,
     lastMoveSquares,
     drawOffer,
-    teamVote,
-    kickVote,
-    resetVote,
+    activeVote,
     hasUnreadMessages,
     setHasUnreadMessages,
   };

@@ -77,10 +77,7 @@ export class MockGameContext implements IGameContext {
       endReason: undefined,
       endWinner: undefined,
       drawOffer: undefined,
-      whiteVote: undefined,
-      blackVote: undefined,
-      kickVote: undefined,
-      resetVote: undefined,
+      activeVote: undefined,
       blacklist: new Set(),
       ...initialState,
     };

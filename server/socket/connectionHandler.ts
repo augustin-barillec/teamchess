@@ -10,10 +10,8 @@ import {
 } from "../utils/messaging.js";
 import { MSG, DEFAULT_PLAYER_NAME } from "../shared_messages.js";
 import { tryFinalizeTurn } from "../game/gameLogic.js";
-import { getTeamVoteClientData } from "../voting/teamVote.js";
+import { getVoteClientData } from "../voting/activeVote.js";
 import { leave } from "../players/playerManager.js";
-import { getKickVoteClientData } from "../voting/kickVote.js";
-import { getResetVoteClientData } from "../voting/resetVote.js";
 import {
   handleSetName,
   handleJoinSide,
@@ -21,10 +19,8 @@ import {
   handlePlayMove,
   handleChatMessage,
   handleStartTeamVote,
-  handleVoteTeam,
   handleStartKickVote,
-  handleKickVote,
-  handleVoteReset,
+  handleCastVote,
 } from "./eventHandlers.js";
 
 /**
@@ -116,16 +112,8 @@ export function setupConnectionHandler(
       }
     }
 
-    if (socket.data.side === "white" || socket.data.side === "black") {
-      socket.emit(
-        "team_vote_update",
-        getTeamVoteClientData(socket.data.side, pid, ctx)
-      );
-    }
-
-    // Send kick vote state (late joiners see it with myVoteEligible: false)
-    socket.emit("kick_vote_update", getKickVoteClientData(pid, ctx));
-    socket.emit("reset_vote_update", getResetVoteClientData(pid, ctx));
+    // Send active vote state (late joiners see it with myVoteEligible: false)
+    socket.emit("vote_update", getVoteClientData(pid, ctx));
 
     if (isNewPlayer) {
       sendPrivateSystemMessage(socket, MSG.welcomeMessage);
@@ -155,20 +143,12 @@ export function setupConnectionHandler(
       handleStartTeamVote(socket, type, ctx)
     );
 
-    socket.on("vote_team", (vote: "yes" | "no") =>
-      handleVoteTeam(socket, vote, ctx)
-    );
-
     socket.on("start_kick_vote", (targetId: string) =>
       handleStartKickVote(socket, targetId, ctx)
     );
 
-    socket.on("vote_kick", (vote: "yes" | "no") =>
-      handleKickVote(socket, vote, ctx)
-    );
-
-    socket.on("vote_reset", (vote: "yes" | "no") =>
-      handleVoteReset(socket, vote, ctx)
+    socket.on("cast_vote", (vote: "yes" | "no") =>
+      handleCastVote(socket, vote, ctx)
     );
 
     socket.on("disconnect", () => leave(socket, ctx));

@@ -203,10 +203,6 @@
   flex-direction: column;
   align-items: flex-start;
 }
-.player-list li.player-list-item-column > .kick-vote-wrap {
-  align-self: stretch;
-  width: 100%;
-}
 .player-entry {
   display: flex;
   align-items: center;

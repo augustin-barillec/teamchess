@@ -47,10 +47,7 @@ export interface IGameContext {
  */
 export function clearGameStateTimers(state: GameState): void {
   if (state.timerInterval) clearInterval(state.timerInterval);
-  if (state.whiteVote?.timer) clearTimeout(state.whiteVote.timer);
-  if (state.blackVote?.timer) clearTimeout(state.blackVote.timer);
-  if (state.kickVote?.timer) clearTimeout(state.kickVote.timer);
-  if (state.resetVote?.timer) clearTimeout(state.resetVote.timer);
+  if (state.activeVote?.timer) clearTimeout(state.activeVote.timer);
 }
 
 /**
@@ -72,10 +69,7 @@ export function createInitialGameState(engine: Engine): GameState {
     endReason: undefined,
     endWinner: undefined,
     drawOffer: undefined,
-    whiteVote: undefined,
-    blackVote: undefined,
-    kickVote: undefined,
-    resetVote: undefined,
+    activeVote: undefined,
     blacklist: new Set(),
   };
 }

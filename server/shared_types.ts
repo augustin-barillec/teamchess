@@ -38,45 +38,45 @@ export type Selection = Proposal & {
 
 export type VoteType = "resign" | "offer_draw" | "accept_draw";
 
-export interface TeamVoteState {
-  isActive: boolean;
-  type: VoteType | null;
+// Only one vote can be active at a time, whatever its kind. The server sends the
+// whole state (or null) on every `vote_update`; fields are personalized per viewer.
+export type VoteKind = "team" | "kick" | "reset";
+
+interface VoteStateBase {
   yesVotes: string[];
+  noVotes: string[];
   requiredVotes: number;
   endTime: number;
   myVoteEligible: boolean;
+  myCurrentVote: "yes" | "no" | null;
 }
+
+export interface TeamVoteState extends VoteStateBase {
+  kind: "team";
+  side: "white" | "black";
+  type: VoteType;
+}
+
+export interface KickVoteState extends VoteStateBase {
+  kind: "kick";
+  targetId: string;
+  targetName: string;
+  totalVoters: number;
+  amTarget: boolean;
+}
+
+export interface ResetVoteState extends VoteStateBase {
+  kind: "reset";
+  totalVoters: number;
+}
+
+export type ActiveVoteState = TeamVoteState | KickVoteState | ResetVoteState;
 
 export enum GameStatus {
   Setup = "Setup",
   AwaitingProposals = "AwaitingProposals",
   FinalizingTurn = "FinalizingTurn",
   Over = "Over",
-}
-
-export interface KickVoteState {
-  isActive: boolean;
-  targetId: string | null;
-  targetName: string;
-  yesVotes: string[];
-  noVotes: string[];
-  requiredVotes: number;
-  totalVoters: number;
-  endTime: number;
-  myVoteEligible: boolean;
-  myCurrentVote: "yes" | "no" | null;
-  amTarget: boolean;
-}
-
-export interface ResetVoteState {
-  isActive: boolean;
-  yesVotes: string[];
-  noVotes: string[];
-  requiredVotes: number;
-  totalVoters: number;
-  endTime: number;
-  myVoteEligible: boolean;
-  myCurrentVote: "yes" | "no" | null;
 }
 
 export enum EndReason {

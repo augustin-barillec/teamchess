@@ -54,8 +54,8 @@ export const UI = {
   voteInProgress: "Vote in progress.",
 
   // Kick vote
-  kickVoteTargetSelf: "Vote to kick you",
-  kickVoteTargetOther: "Vote to kick this player?",
+  kickVoteTargetSelf: "Vote: Kick you",
+  voteKickTitle: (name: string) => `Vote: Kick ${name}`,
   kickVoteTooltip: (name: string) => `Vote to kick ${name}`,
 
   // Status

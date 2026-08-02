@@ -4,7 +4,7 @@ import { GameStatus, EndReason, Proposal } from "../types.js";
 import { reasonMessages, gameOverFallback, MSG } from "../shared_messages.js";
 import { getCleanPgn } from "../utils/pgn.js";
 import { broadcastPlayers, sendSystemMessage } from "../utils/messaging.js";
-import { clearTeamVote, setEndGameCallback } from "../voting/teamVote.js";
+import { clearActiveVote, setEndGameCallback } from "../voting/activeVote.js";
 import { startClock, stopClock, setTimeoutCallback } from "./clock.js";
 import { chooseBestMove } from "../engine/stockfish.js";
 import {
@@ -29,8 +29,8 @@ export function endGame(
   if (gameState.status === GameStatus.Over) return;
   stopClock(ctx);
 
-  clearTeamVote("white", ctx);
-  clearTeamVote("black", ctx);
+  // Team votes are meaningless once the game is over; kick/reset votes survive it
+  if (gameState.activeVote?.kind === "team") clearActiveVote(ctx);
 
   gameState.engine.quit();
   gameState.status = GameStatus.Over;

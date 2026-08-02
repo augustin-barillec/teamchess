@@ -4,11 +4,20 @@ import type { PlayerSide } from "../types.js";
 /**
  * The electorate is frozen when the vote is created: `eligibleVoters` maps every voter to
  * the name they had at that instant, and neither it nor `required` changes afterwards,
- * whoever joins or leaves. Unanimity is always measured against the roster at the moment
- * the vote started — and a voter who leaves mid-vote keeps both their recorded yes and the
+ * whoever joins or leaves. Thresholds are always measured against the roster at the moment
+ * the vote started — and a voter who leaves mid-vote keeps both their recorded vote and the
  * name the vote recorded for them.
+ *
+ * Two rule sets share this file:
+ * - Team votes (resign / offer_draw / accept_draw): unanimity, yes-only — a single "no"
+ *   fails the vote instantly.
+ * - Majority votes (kick / reset): strict majority, voters may switch between yes and no.
+ *
+ * Only one vote of any kind can be active at a time; that mutex lives in
+ * voting/activeVote.ts, not here.
  */
-export interface VoteState {
+
+export interface TeamVoteCore {
   type: VoteType;
   initiatorId: string;
   yesVoters: Set<string>;
@@ -16,23 +25,31 @@ export interface VoteState {
   readonly required: number;
 }
 
-export interface VotePrerequisiteResult {
+export interface MajorityVoteCore {
+  initiatorId: string;
+  yesVoters: Set<string>;
+  noVoters: Set<string>;
+  readonly eligibleVoters: ReadonlyMap<string, string>;
+  readonly required: number;
+  readonly total: number;
+}
+
+export interface TeamVotePrerequisiteResult {
   canStartVote: boolean;
   shouldAutoExecute: boolean;
 }
 
 /**
- * Checks prerequisites for starting a vote.
+ * Checks team-vote-specific prerequisites (draw-offer validity, solo auto-execute).
  * Pure function - no side effects.
  */
-export function checkVotePrerequisites(
+export function checkTeamVotePrerequisites(
   type: VoteType,
   connectedTeamCount: number,
   isSystemTriggered: boolean,
-  existingVote: VoteState | undefined,
   drawOffer: PlayerSide | undefined,
   votingSide: PlayerSide
-): VotePrerequisiteResult {
+): TeamVotePrerequisiteResult {
   // Can't accept draw if no valid offer
   if (type === "accept_draw" && (!drawOffer || drawOffer === votingSide)) {
     return { shouldAutoExecute: false, canStartVote: false };
@@ -40,11 +57,6 @@ export function checkVotePrerequisites(
 
   // Can't offer draw if already offered
   if (type === "offer_draw" && drawOffer) {
-    return { shouldAutoExecute: false, canStartVote: false };
-  }
-
-  // Can't start vote if one is in progress
-  if (existingVote) {
     return { shouldAutoExecute: false, canStartVote: false };
   }
 
@@ -56,7 +68,13 @@ export function checkVotePrerequisites(
   return { shouldAutoExecute: false, canStartVote: true };
 }
 
-export interface VoteProcessResult {
+export interface TeamVoteInput {
+  yesVoters: Set<string>;
+  eligibleVoters: ReadonlyMap<string, string>;
+  required: number;
+}
+
+export interface TeamVoteProcessResult {
   passed: boolean;
   failed: boolean;
   ineligible?: boolean;
@@ -64,14 +82,14 @@ export interface VoteProcessResult {
 }
 
 /**
- * Processes a vote from a player.
+ * Processes a team (unanimity) vote from a player: a "no" fails the vote instantly.
  * Pure function - returns result without modifying input.
  */
-export function processVote(
-  vote: VoteState,
+export function processTeamVote(
+  vote: TeamVoteInput,
   voterId: string,
   voteChoice: "yes" | "no"
-): VoteProcessResult {
+): TeamVoteProcessResult {
   // Check eligibility
   if (!vote.eligibleVoters.has(voterId)) {
     return { passed: false, failed: false, ineligible: true };
@@ -169,15 +187,15 @@ export function processMajorityVote(
 }
 
 /**
- * Creates a new vote state.
+ * Creates a new team (unanimity) vote state: every eligible voter must say yes.
  * Pure function - returns new state object.
  */
-export function createVoteState(
+export function createTeamVoteState(
   type: VoteType,
   initiatorId: string,
   eligibleVoters: ReadonlyMap<string, string>,
   isSystemTriggered: boolean
-): VoteState {
+): TeamVoteCore {
   const initialYes = isSystemTriggered
     ? new Set<string>()
     : new Set([initiatorId]);
@@ -188,5 +206,28 @@ export function createVoteState(
     yesVoters: initialYes,
     eligibleVoters: new Map(eligibleVoters),
     required: eligibleVoters.size,
+  };
+}
+
+/**
+ * Creates a new majority vote state: strict majority (floor(total/2) + 1) required.
+ * The initiator automatically votes yes.
+ *
+ * `totalCount` is the threshold base; it defaults to the electorate size but may exceed
+ * it — a kick vote counts the target in the threshold while excluding them from
+ * `eligibleVoters`.
+ */
+export function createMajorityVoteState(
+  initiatorId: string,
+  eligibleVoters: ReadonlyMap<string, string>,
+  totalCount: number = eligibleVoters.size
+): MajorityVoteCore {
+  return {
+    initiatorId,
+    yesVoters: new Set([initiatorId]),
+    noVoters: new Set(),
+    eligibleVoters: new Map(eligibleVoters),
+    required: Math.floor(totalCount / 2) + 1,
+    total: totalCount,
   };
 }

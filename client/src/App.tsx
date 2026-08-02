@@ -55,9 +55,7 @@ export default function App() {
     clocks,
     lastMoveSquares,
     drawOffer,
-    teamVote,
-    kickVote,
-    resetVote,
+    activeVote,
     hasUnreadMessages,
     setHasUnreadMessages,
   } = useSocket({ chess, isMobile, activeTabRef });
@@ -149,17 +147,13 @@ export default function App() {
 
   const [voteNow, setVoteNow] = useState(() => Date.now());
   useEffect(() => {
-    if (!teamVote.isActive && !resetVote.isActive) return;
+    if (!activeVote) return;
     const interval = setInterval(() => setVoteNow(Date.now()), 1000);
     return () => clearInterval(interval);
-  }, [teamVote.isActive, resetVote.isActive]);
-  const teamVoteTimeLeft = Math.max(
+  }, [activeVote]);
+  const voteTimeLeft = Math.max(
     0,
-    Math.ceil((teamVote.endTime - voteNow) / 1000)
-  );
-  const resetVoteTimeLeft = Math.max(
-    0,
-    Math.ceil((resetVote.endTime - voteNow) / 1000)
+    Math.ceil(((activeVote?.endTime ?? 0) - voteNow) / 1000)
   );
 
   const joinSide = (s: "white" | "black" | "spectator") => {
@@ -199,16 +193,12 @@ export default function App() {
     doStartTeamVote(type);
   };
 
-  const sendTeamVote = (vote: "yes" | "no") => {
-    socket?.emit("vote_team", vote);
+  const castVote = (vote: "yes" | "no") => {
+    socket?.emit("cast_vote", vote);
   };
 
   const startKickVote = (targetId: string) => {
     socket?.emit("start_kick_vote", targetId);
-  };
-
-  const sendKickVote = (vote: "yes" | "no") => {
-    socket?.emit("vote_kick", vote);
   };
 
   const doResetGame = () => {
@@ -229,10 +219,6 @@ export default function App() {
       return;
     }
     doResetGame();
-  };
-
-  const sendResetVote = (vote: "yes" | "no") => {
-    socket?.emit("vote_reset", vote);
   };
 
   const submitMove = (lan: string) => {
@@ -447,7 +433,7 @@ export default function App() {
   const showBoardActions =
     gameStatus === GameStatus.AwaitingProposals &&
     (side === "white" || side === "black") &&
-    !teamVote.isActive;
+    !activeVote;
   const myTeamOfferedDraw = showBoardActions && drawOffer === side;
   const otherTeamOfferingDraw =
     showBoardActions && drawOffer !== null && drawOffer !== side;
@@ -499,43 +485,40 @@ export default function App() {
     </button>
   ) : null;
 
-  // --- Desktop vote banner (team vote or reset vote) ---
+  // --- Vote banner: the single active vote, whatever its kind ---
   const teamVoteTitleMap = {
     resign: UI.voteTypeResign,
     offer_draw: UI.voteTypeOfferDraw,
     accept_draw: UI.voteTypeAcceptDraw,
   };
   let voteBannerContent: React.ReactNode = null;
-  if (teamVote.isActive && teamVote.type) {
+  if (activeVote) {
+    const title =
+      activeVote.kind === "team"
+        ? `Vote: ${teamVoteTitleMap[activeVote.type]}`
+        : activeVote.kind === "reset"
+          ? UI.voteResetGame
+          : activeVote.amTarget
+            ? UI.kickVoteTargetSelf
+            : UI.voteKickTitle(activeVote.targetName);
+
     voteBannerContent = (
       <VoteBanner
-        title={`Vote: ${teamVoteTitleMap[teamVote.type]}`}
-        yesVotes={teamVote.yesVotes}
-        requiredVotes={teamVote.requiredVotes}
-        timeLeft={teamVoteTimeLeft}
-        myVoteEligible={teamVote.myVoteEligible}
-        onYes={() => sendTeamVote("yes")}
-        onNo={() => sendTeamVote("no")}
-      />
-    );
-  } else if (resetVote.isActive) {
-    voteBannerContent = (
-      <VoteBanner
-        title={UI.voteResetGame}
-        yesVotes={resetVote.yesVotes}
-        noVotes={resetVote.noVotes}
-        requiredVotes={resetVote.requiredVotes}
-        timeLeft={resetVoteTimeLeft}
-        myVoteEligible={resetVote.myVoteEligible}
-        myCurrentVote={resetVote.myCurrentVote}
-        onYes={() => sendResetVote("yes")}
-        onNo={() => sendResetVote("no")}
+        title={title}
+        yesVotes={activeVote.yesVotes}
+        noVotes={activeVote.kind === "team" ? undefined : activeVote.noVotes}
+        requiredVotes={activeVote.requiredVotes}
+        timeLeft={voteTimeLeft}
+        myVoteEligible={activeVote.myVoteEligible}
+        myCurrentVote={activeVote.myCurrentVote}
+        onYes={() => castVote("yes")}
+        onNo={() => castVote("no")}
       />
     );
   }
 
   // --- Header icon buttons (reset + mute) ---
-  const showResetIcon = gameStatus !== GameStatus.Setup && !resetVote.isActive;
+  const showResetIcon = gameStatus !== GameStatus.Setup && !activeVote;
   const headerActions = (
     <div className="header-actions">
       {showResetIcon && (
@@ -617,10 +600,6 @@ export default function App() {
           }}
         >
           {UI.tabPlayers}
-          {kickVote.isActive &&
-            (kickVote.amTarget || activeTab !== "players") && (
-              <span className="unread-dot"></span>
-            )}
         </button>
         <button
           className={activeTab === "moves" ? "active" : ""}
@@ -654,9 +633,8 @@ export default function App() {
           amDisconnected={amDisconnected}
           openNameModal={openNameModal}
           hasPlayed={hasPlayed}
-          kickVote={kickVote}
+          canStartKick={!activeVote}
           onStartKickVote={startKickVote}
-          onSendKickVote={sendKickVote}
           showJoinControls
           side={side}
           gameStatus={gameStatus}
@@ -774,9 +752,8 @@ export default function App() {
                     amDisconnected={amDisconnected}
                     openNameModal={openNameModal}
                     hasPlayed={hasPlayed}
-                    kickVote={kickVote}
+                    canStartKick={!activeVote}
                     onStartKickVote={startKickVote}
-                    onSendKickVote={sendKickVote}
                     showJoinControls
                     side={side}
                     gameStatus={gameStatus}

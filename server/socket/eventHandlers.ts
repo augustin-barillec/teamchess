@@ -7,26 +7,15 @@ import { broadcastPlayers, sendSystemMessage } from "../utils/messaging.js";
 import { tryFinalizeTurn, endIfOneSided, endGame } from "../game/gameLogic.js";
 import { startClock } from "../game/clock.js";
 import {
-  getTeamVoteClientData,
-  broadcastTeamVote,
-  clearTeamVote,
-  startTeamVoteLogic,
-} from "../voting/teamVote.js";
+  broadcastVote,
+  clearActiveVote,
+  startTeamVote,
+  startKickVote,
+  startResetVote,
+} from "../voting/activeVote.js";
 import { createEngine } from "../engine/stockfish.js";
-import { processVote } from "../core/voteLogic.js";
-import { processKickVote } from "../core/kickVoteLogic.js";
-import { processResetVote } from "../core/resetVoteLogic.js";
-import {
-  startKickVoteLogic,
-  clearKickVote,
-  broadcastKickVote,
-  executeKick,
-} from "../voting/kickVote.js";
-import {
-  startResetVoteLogic,
-  clearResetVote,
-  broadcastResetVote,
-} from "../voting/resetVote.js";
+import { processTeamVote, processMajorityVote } from "../core/voteLogic.js";
+import { executeKick } from "../players/playerManager.js";
 import { DEFAULT_CLOCK_TIME } from "../constants.js";
 import { MSG } from "../shared_messages.js";
 
@@ -76,20 +65,6 @@ export function handleJoinSide(
   broadcastPlayers(ctx);
   tryFinalizeTurn(ctx);
 
-  // UPDATE CLIENT VOTE UI
-  if (side === "white" || side === "black") {
-    socket.emit("team_vote_update", getTeamVoteClientData(side, pid, ctx));
-  } else {
-    socket.emit("team_vote_update", {
-      isActive: false,
-      type: null,
-      yesVotes: [],
-      requiredVotes: 0,
-      endTime: 0,
-      myVoteEligible: false,
-    });
-  }
-
   cb?.({ success: true });
 }
 
@@ -98,7 +73,7 @@ export function handleResetGame(
   cb?: (res: { success?: boolean; error?: string }) => void,
   ctx: IGameContext = globalContext
 ): void {
-  const result = startResetVoteLogic(socket.data.pid, ctx);
+  const result = startResetVote(socket.data.pid, ctx);
 
   if (result.error) {
     return cb?.({ error: result.error });
@@ -125,55 +100,7 @@ export function executeGameReset(ctx: IGameContext = globalContext): void {
     whiteTime: DEFAULT_CLOCK_TIME,
     blackTime: DEFAULT_CLOCK_TIME,
   });
-  broadcastTeamVote("white", ctx);
-  broadcastTeamVote("black", ctx);
-  broadcastKickVote(ctx);
-  broadcastResetVote(ctx);
-}
-
-export function handleVoteReset(
-  socket: Socket,
-  vote: "yes" | "no",
-  ctx: IGameContext = globalContext
-): void {
-  const pid = socket.data.pid;
-  const { gameState } = ctx;
-
-  const currentVote = gameState.resetVote;
-  if (!currentVote) return;
-
-  const voteResult = processResetVote(
-    {
-      initiatorId: currentVote.initiatorId,
-      yesVoters: currentVote.yesVoters,
-      noVoters: currentVote.noVoters,
-      eligibleVoters: currentVote.eligibleVoters,
-      required: currentVote.required,
-      total: currentVote.total,
-    },
-    pid,
-    vote
-  );
-
-  if (voteResult.ineligible) {
-    socket.emit("error", { message: MSG.errorNotEligible });
-    return;
-  }
-
-  if (voteResult.updatedYesVoters)
-    currentVote.yesVoters = voteResult.updatedYesVoters;
-  if (voteResult.updatedNoVoters)
-    currentVote.noVoters = voteResult.updatedNoVoters;
-
-  if (voteResult.passed) {
-    clearResetVote(ctx);
-    executeGameReset(ctx);
-  } else if (voteResult.failed) {
-    clearResetVote(ctx);
-    sendSystemMessage(MSG.resetVoteFailed, ctx);
-  } else if (voteResult.updatedYesVoters || voteResult.updatedNoVoters) {
-    broadcastResetVote(ctx);
-  }
+  broadcastVote(ctx);
 }
 
 export function handlePlayMove(
@@ -276,74 +203,10 @@ export function handleStartTeamVote(
   if (socket.data.side !== "white" && socket.data.side !== "black") return;
   if (gameState.status !== GameStatus.AwaitingProposals) return;
 
-  startTeamVoteLogic(socket.data.side, type, socket.data.pid, ctx);
-}
+  const result = startTeamVote(socket.data.side, type, socket.data.pid, ctx);
 
-export function handleVoteTeam(
-  socket: Socket,
-  vote: "yes" | "no",
-  ctx: IGameContext = globalContext
-): void {
-  const pid = socket.data.pid;
-  const side = socket.data.side;
-  const { gameState, io } = ctx;
-
-  if (side !== "white" && side !== "black") return;
-
-  const currentVote =
-    side === "white" ? gameState.whiteVote : gameState.blackVote;
-  if (!currentVote) return;
-
-  // Use pure logic to process vote
-  const voteResult = processVote(
-    {
-      type: currentVote.type,
-      initiatorId: currentVote.initiatorId,
-      yesVoters: currentVote.yesVoters,
-      eligibleVoters: currentVote.eligibleVoters,
-      required: currentVote.required,
-    },
-    pid,
-    vote
-  );
-
-  if (voteResult.ineligible) {
-    socket.emit("error", { message: MSG.errorJoinedLate });
-    return;
-  }
-
-  if (voteResult.failed) {
-    clearTeamVote(side, ctx);
-    sendSystemMessage(MSG.teamVoteFailed(currentVote.type), ctx);
-
-    // Explicitly reject draw if it was an accept_draw vote
-    if (currentVote.type === "accept_draw") {
-      gameState.drawOffer = undefined;
-      io.emit("draw_offer_update", { side: null });
-    }
-  } else if (voteResult.updatedYesVoters) {
-    // Update the yes voters
-    currentVote.yesVoters = voteResult.updatedYesVoters;
-
-    if (voteResult.passed) {
-      clearTeamVote(side, ctx);
-
-      if (currentVote.type === "resign") {
-        const winner = side === "white" ? "black" : "white";
-        endGame(EndReason.Resignation, winner, ctx);
-      } else if (currentVote.type === "offer_draw") {
-        gameState.drawOffer = side;
-        io.emit("draw_offer_update", { side });
-
-        // Trigger vote for other side
-        const otherSide = side === "white" ? "black" : "white";
-        startTeamVoteLogic(otherSide, "accept_draw", "system", ctx);
-      } else if (currentVote.type === "accept_draw") {
-        endGame(EndReason.DrawAgreement, null, ctx);
-      }
-    } else {
-      broadcastTeamVote(side, ctx);
-    }
+  if (result.error) {
+    socket.emit("error", { message: result.error });
   }
 }
 
@@ -362,64 +225,100 @@ export function handleStartKickVote(
     return;
   }
 
-  const result = startKickVoteLogic(
-    initiatorPid,
-    targetId,
-    targetSess.name,
-    ctx
-  );
+  const result = startKickVote(initiatorPid, targetId, targetSess.name, ctx);
 
   if (result.error) {
     socket.emit("error", { message: result.error });
   }
 }
 
-export function handleKickVote(
+/**
+ * Applies a yes/no ballot to whatever vote is currently active.
+ * Eligibility is decided solely by the vote's frozen electorate.
+ */
+export function handleCastVote(
   socket: Socket,
   vote: "yes" | "no",
   ctx: IGameContext = globalContext
 ): void {
   const pid = socket.data.pid;
-  const { gameState } = ctx;
+  const { gameState, io } = ctx;
 
-  const currentVote = gameState.kickVote;
+  const currentVote = gameState.activeVote;
   if (!currentVote) return;
 
-  const voteResult = processKickVote(
-    {
-      targetId: currentVote.targetId,
-      initiatorId: currentVote.initiatorId,
-      yesVoters: currentVote.yesVoters,
-      noVoters: currentVote.noVoters,
-      eligibleVoters: currentVote.eligibleVoters,
-      required: currentVote.required,
-      total: currentVote.total,
-    },
-    pid,
-    vote
-  );
+  if (currentVote.kind === "team") {
+    const voteResult = processTeamVote(currentVote, pid, vote);
+
+    if (voteResult.ineligible) {
+      socket.emit("error", { message: MSG.errorNotEligible });
+      return;
+    }
+
+    if (voteResult.failed) {
+      clearActiveVote(ctx);
+      sendSystemMessage(MSG.teamVoteFailed(currentVote.type), ctx);
+
+      // Explicitly reject draw if it was an accept_draw vote
+      if (currentVote.type === "accept_draw") {
+        gameState.drawOffer = undefined;
+        io.emit("draw_offer_update", { side: null });
+      }
+    } else if (voteResult.updatedYesVoters) {
+      currentVote.yesVoters = voteResult.updatedYesVoters;
+
+      if (voteResult.passed) {
+        clearActiveVote(ctx);
+
+        if (currentVote.type === "resign") {
+          const winner = currentVote.side === "white" ? "black" : "white";
+          endGame(EndReason.Resignation, winner, ctx);
+        } else if (currentVote.type === "offer_draw") {
+          gameState.drawOffer = currentVote.side;
+          io.emit("draw_offer_update", { side: currentVote.side });
+
+          // Trigger vote for other side
+          const otherSide = currentVote.side === "white" ? "black" : "white";
+          startTeamVote(otherSide, "accept_draw", "system", ctx);
+        } else if (currentVote.type === "accept_draw") {
+          endGame(EndReason.DrawAgreement, null, ctx);
+        }
+      } else {
+        broadcastVote(ctx);
+      }
+    }
+    return;
+  }
+
+  // Majority votes: kick & reset
+  const voteResult = processMajorityVote(currentVote, pid, vote);
 
   if (voteResult.ineligible) {
     socket.emit("error", { message: MSG.errorNotEligible });
     return;
   }
 
-  // Update internal state
   if (voteResult.updatedYesVoters)
     currentVote.yesVoters = voteResult.updatedYesVoters;
   if (voteResult.updatedNoVoters)
     currentVote.noVoters = voteResult.updatedNoVoters;
 
   if (voteResult.passed) {
-    const targetName = currentVote.targetName;
-    const targetPid = currentVote.targetId;
-    clearKickVote(ctx);
-    executeKick(targetPid, targetName, ctx);
+    clearActiveVote(ctx);
+    if (currentVote.kind === "kick") {
+      executeKick(currentVote.targetId, currentVote.targetName, ctx);
+    } else {
+      executeGameReset(ctx);
+    }
   } else if (voteResult.failed) {
-    const targetName = currentVote.targetName;
-    clearKickVote(ctx);
-    sendSystemMessage(MSG.kickVoteFailed(targetName), ctx);
+    clearActiveVote(ctx);
+    sendSystemMessage(
+      currentVote.kind === "kick"
+        ? MSG.kickVoteFailed(currentVote.targetName)
+        : MSG.resetVoteFailed,
+      ctx
+    );
   } else if (voteResult.updatedYesVoters || voteResult.updatedNoVoters) {
-    broadcastKickVote(ctx);
+    broadcastVote(ctx);
   }
 }

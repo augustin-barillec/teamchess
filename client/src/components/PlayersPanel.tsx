@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { Players, KickVoteState, GameStatus } from "../types";
+import { Players, GameStatus } from "../types";
 import { DisconnectedIcon } from "../DisconnectedIcon";
 import { DEFAULT_PLAYER_NAME, UI } from "../messages";
 import { colorForPlayer } from "../playerColors";
@@ -11,9 +10,9 @@ interface PlayersPanelProps {
   amDisconnected: boolean;
   openNameModal: () => void;
   hasPlayed: (playerId: string, teamSide: "white" | "black") => boolean;
-  kickVote: KickVoteState;
+  /** False while any vote is active — starting a kick would be rejected anyway. */
+  canStartKick: boolean;
   onStartKickVote: (targetId: string) => void;
-  onSendKickVote: (vote: "yes" | "no") => void;
   /** Desktop-only: when provided, renders join/auto-assign controls in section headings. */
   showJoinControls?: boolean;
   side?: "white" | "black" | "spectator";
@@ -41,72 +40,6 @@ const PencilIcon: React.FC = () => (
   </svg>
 );
 
-function KickVoteBox({
-  kickVote,
-  onSendKickVote,
-}: {
-  kickVote: KickVoteState;
-  onSendKickVote: (vote: "yes" | "no") => void;
-}) {
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    if (!kickVote.isActive) return;
-    const interval = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(interval);
-  }, [kickVote.isActive]);
-
-  const timeLeft = Math.max(0, Math.ceil((kickVote.endTime - now) / 1000));
-
-  const canVote = kickVote.myVoteEligible && !kickVote.amTarget;
-  const canVoteYes = canVote && kickVote.myCurrentVote !== "yes";
-  const canVoteNo = canVote && kickVote.myCurrentVote !== "no";
-  const yesClass =
-    "vote-yes-btn" + (kickVote.myCurrentVote === "yes" ? " cast" : "");
-  const noClass =
-    "vote-no-btn" + (kickVote.myCurrentVote === "no" ? " cast" : "");
-
-  return (
-    <div className="kick-vote-wrap">
-      <div className="vote-box">
-        <div className="vote-box-title">
-          {kickVote.amTarget ? UI.kickVoteTargetSelf : UI.kickVoteTargetOther}
-        </div>
-        <div className="vote-box-meta">
-          {kickVote.yesVotes.length}/{kickVote.requiredVotes} &bull; {timeLeft}s
-        </div>
-
-        <div className="vote-box-buttons">
-          <button
-            onClick={() => onSendKickVote("yes")}
-            disabled={!canVoteYes}
-            className={yesClass}
-          >
-            Yes ({kickVote.yesVotes.length})
-          </button>
-          <button
-            onClick={() => onSendKickVote("no")}
-            disabled={!canVoteNo}
-            className={noClass}
-          >
-            No ({kickVote.noVotes.length})
-          </button>
-        </div>
-        {kickVote.yesVotes.length > 0 && (
-          <div className="vote-box-yes-list">
-            Yes: {kickVote.yesVotes.join(", ")}
-          </div>
-        )}
-        {kickVote.noVotes.length > 0 && (
-          <div className="vote-box-no-list">
-            No: {kickVote.noVotes.join(", ")}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 export const PlayersPanel: React.FC<PlayersPanelProps> = ({
   activeTab,
   players,
@@ -114,9 +47,8 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
   amDisconnected,
   openNameModal,
   hasPlayed,
-  kickVote,
+  canStartKick,
   onStartKickVote,
-  onSendKickVote,
   showJoinControls = false,
   side,
   gameStatus,
@@ -147,8 +79,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
   ) => {
     const isMe = p.id === myId;
     const disconnected = isMe ? amDisconnected : !p.connected;
-    const showKickButton = !isMe && !kickVote.isActive;
-    const isKickTarget = kickVote.isActive && kickVote.targetId === p.id;
+    const showKickButton = !isMe && canStartKick;
     const played = teamSide ? hasPlayed(p.id, teamSide) : false;
     const nameStyle = { color: colorForPlayer(p.id) };
 
@@ -192,9 +123,6 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
             </button>
           )}
         </div>
-        {isKickTarget && (
-          <KickVoteBox kickVote={kickVote} onSendKickVote={onSendKickVote} />
-        )}
       </li>
     );
   };

@@ -13,9 +13,9 @@ export type Session = {
 
 // `eligibleVoters` is the vote's frozen electorate: pid -> name as of vote creation.
 // See core/voteLogic.ts. Never mutate it or `required` on an in-flight vote.
+// Only one vote can be active at a time (gameState.activeVote), whatever its kind.
 
-export interface InternalVoteState {
-  type: VoteType;
+interface InternalVoteBase {
   initiatorId: string;
   yesVoters: Set<string>;
   readonly eligibleVoters: ReadonlyMap<string, string>;
@@ -24,29 +24,30 @@ export interface InternalVoteState {
   endTime: number;
 }
 
-export interface InternalKickVoteState {
+export interface InternalTeamVote extends InternalVoteBase {
+  kind: "team";
+  side: PlayerSide;
+  type: VoteType;
+}
+
+export interface InternalKickVote extends InternalVoteBase {
+  kind: "kick";
   targetId: string;
   targetName: string;
-  initiatorId: string;
-  yesVoters: Set<string>;
   noVoters: Set<string>;
-  readonly eligibleVoters: ReadonlyMap<string, string>;
-  readonly required: number;
   readonly total: number;
-  timer: NodeJS.Timeout;
-  endTime: number;
 }
 
-export interface InternalResetVoteState {
-  initiatorId: string;
-  yesVoters: Set<string>;
+export interface InternalResetVote extends InternalVoteBase {
+  kind: "reset";
   noVoters: Set<string>;
-  readonly eligibleVoters: ReadonlyMap<string, string>;
-  readonly required: number;
   readonly total: number;
-  timer: NodeJS.Timeout;
-  endTime: number;
 }
+
+export type InternalActiveVote =
+  | InternalTeamVote
+  | InternalKickVote
+  | InternalResetVote;
 
 export interface Engine {
   send: (command: string, callback?: (output: string) => void) => void;
@@ -68,10 +69,7 @@ export interface GameState {
   endReason?: string;
   endWinner?: string | null;
   drawOffer?: "white" | "black";
-  whiteVote?: InternalVoteState;
-  blackVote?: InternalVoteState;
-  kickVote?: InternalKickVoteState;
-  resetVote?: InternalResetVoteState;
+  activeVote?: InternalActiveVote;
   blacklist: Set<string>;
 }
 
@@ -83,6 +81,8 @@ export type {
   Proposal,
   Selection,
   VoteType,
+  VoteKind,
+  ActiveVoteState,
   TeamVoteState,
   KickVoteState,
   ResetVoteState,
