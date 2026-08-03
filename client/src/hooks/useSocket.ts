@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { Chess } from "chess.js";
 import { toast } from "react-hot-toast";
@@ -13,12 +13,7 @@ import {
 } from "../types";
 import { Turn } from "../types";
 import { STORAGE_KEYS } from "../constants";
-import {
-  reasonMessages,
-  gameOverFallback,
-  DEFAULT_PLAYER_NAME,
-  UI,
-} from "../messages";
+import { DEFAULT_PLAYER_NAME, UI } from "../messages";
 import { sounds } from "../soundEngine";
 
 interface UseSocketProps {
@@ -92,6 +87,14 @@ export function useSocket({
   const [drawOffer, setDrawOffer] = useState<"white" | "black" | null>(null);
   const [activeVote, setActiveVote] = useState<ActiveVoteState | null>(null);
   const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
+
+  // Handlers are registered once per socket; they read isMobile through a ref
+  // so a viewport change never re-registers them (re-registering used to
+  // disconnect the socket for good — a manual disconnect() is never retried).
+  const isMobileRef = useRef(isMobile);
+  useEffect(() => {
+    isMobileRef.current = isMobile;
+  }, [isMobile]);
 
   // Socket initialization
   useEffect(() => {
@@ -167,7 +170,16 @@ export function useSocket({
       }: GameInfo & { proposals: Proposal[] }) => {
         setGameStatus(GameStatus.AwaitingProposals);
         setPgn("");
-        setTurns([{ moveNumber, side, proposals: proposals || [] }]);
+        setTurns((prev) => {
+          const incoming = { moveNumber, side, proposals: proposals || [] };
+          const last = prev[prev.length - 1];
+          // Reconnection resync of the turn we already know: keep the history
+          // and just refresh the current turn's proposals.
+          if (last && last.moveNumber === moveNumber && last.side === side) {
+            return [...prev.slice(0, -1), { ...last, ...incoming }];
+          }
+          return [incoming];
+        });
         setLastMoveSquares(null);
         setDrawOffer(null);
 
@@ -244,27 +256,15 @@ export function useSocket({
 
     socket.on(
       "game_over",
-      ({
-        reason,
-        winner,
-        pgn: newPgn,
-      }: {
-        reason: string;
-        winner: "white" | "black" | null;
-        pgn: string;
-      }) => {
+      ({ pgn: newPgn, message }: { pgn: string; message: string }) => {
         setGameStatus(GameStatus.Over);
         setPgn(newPgn);
         setDrawOffer(null);
 
         sounds.play("end");
 
-        const gameOverMessage = reasonMessages[reason]
-          ? reasonMessages[reason](winner)
-          : gameOverFallback(winner);
-
-        if (isMobile) {
-          toast(gameOverMessage, {
+        if (isMobileRef.current && message) {
+          toast(message, {
             duration: 5000,
             icon: "♟️",
           });
@@ -286,7 +286,7 @@ export function useSocket({
       "draw_offer_update",
       ({ side }: { side: "white" | "black" | null }) => {
         setDrawOffer(side as "white" | "black" | null);
-        if (side && isMobile) {
+        if (side && isMobileRef.current) {
           const teamName = side.charAt(0).toUpperCase() + side.slice(1);
           toast(UI.toastDrawOffer(teamName), {
             icon: "🤝",
@@ -306,9 +306,11 @@ export function useSocket({
     });
 
     return () => {
-      socket.disconnect();
+      // Only detach our handlers: disconnecting here would kill the connection
+      // for good (socket.io never auto-reconnects after a manual disconnect).
+      socket.removeAllListeners();
     };
-  }, [socket, chess, isMobile, activeTabRef]);
+  }, [socket, chess, activeTabRef]);
 
   return {
     socket,

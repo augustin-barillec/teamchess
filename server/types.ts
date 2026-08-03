@@ -55,6 +55,11 @@ export interface Engine {
 }
 
 export interface GameState {
+  /**
+   * Bumped on every game end or reset. Async callbacks (engine search) capture it
+   * before awaiting and bail out if it changed — their turn no longer exists.
+   */
+  generation: number;
   whiteIds: Set<string>;
   blackIds: Set<string>;
   moveNumber: number;
@@ -68,6 +73,8 @@ export interface GameState {
   status: GameStatus;
   endReason?: string;
   endWinner?: string | null;
+  /** Formatted end-of-game announcement, kept for resyncing late joiners. */
+  endMessage?: string;
   drawOffer?: "white" | "black";
   activeVote?: InternalActiveVote;
   blacklist: Set<string>;

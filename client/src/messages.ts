@@ -1,8 +1,4 @@
-export {
-  reasonMessages,
-  gameOverFallback,
-  DEFAULT_PLAYER_NAME,
-} from "../../server/shared_messages";
+export { DEFAULT_PLAYER_NAME } from "../../server/shared_messages";
 
 export const UI = {
   // Tabs

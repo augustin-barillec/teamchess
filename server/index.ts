@@ -3,9 +3,13 @@ import express from "express";
 import { Server } from "socket.io";
 import path from "path";
 import { fileURLToPath } from "url";
-import { setIO, setGameState, getGameState } from "./state.js";
+import {
+  setIO,
+  setGameState,
+  getGameState,
+  createInitialGameState,
+} from "./state.js";
 import { createEngine } from "./engine/stockfish.js";
-import { createInitialGameState } from "./context/GameContext.js";
 import { setupConnectionHandler } from "./socket/connectionHandler.js";
 
 const __filename = fileURLToPath(import.meta.url);

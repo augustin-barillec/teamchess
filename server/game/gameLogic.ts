@@ -1,36 +1,39 @@
-import type { IGameContext } from "../context/GameContext.js";
-import { globalContext } from "../context/GlobalContextAdapter.js";
+import {
+  getGameState,
+  getIO,
+  getActiveTeamPids,
+  resetGameState,
+} from "../state.js";
 import { GameStatus, EndReason, Proposal } from "../types.js";
 import { reasonMessages, gameOverFallback, MSG } from "../shared_messages.js";
 import { getCleanPgn } from "../utils/pgn.js";
 import { broadcastPlayers, sendSystemMessage } from "../utils/messaging.js";
-import { clearActiveVote, setEndGameCallback } from "../voting/activeVote.js";
-import { startClock, stopClock, setTimeoutCallback } from "./clock.js";
-import { chooseBestMove } from "../engine/stockfish.js";
+import { clearActiveVote, broadcastVote } from "../voting.js";
+import { startClock, stopClock } from "./clock.js";
+import { chooseBestMove, createEngine } from "../engine/stockfish.js";
 import {
-  shouldFinalizeTurn as checkShouldFinalize,
+  shouldFinalizeTurn,
   calculateIncrement,
   detectGameOver,
   resolveSelectedMove,
 } from "../core/turnLogic.js";
 import { shouldEndDueToAbandonment } from "../core/playerLogic.js";
+import { DEFAULT_CLOCK_TIME } from "../constants.js";
 
 /**
  * Ends the game with a given reason and optional winner.
- * @param ctx Optional context for dependency injection (defaults to global)
  */
-export function endGame(
-  reason: string,
-  winner: string | null = null,
-  ctx: IGameContext = globalContext
-): void {
-  const { gameState, io } = ctx;
+export function endGame(reason: string, winner: string | null = null): void {
+  const gameState = getGameState();
+  const io = getIO();
 
   if (gameState.status === GameStatus.Over) return;
-  stopClock(ctx);
+  // Invalidate any in-flight engine callback (see tryFinalizeTurn)
+  gameState.generation++;
+  stopClock();
 
   // Team votes are meaningless once the game is over; kick/reset votes survive it
-  if (gameState.activeVote?.kind === "team") clearActiveVote(ctx);
+  if (gameState.activeVote?.kind === "team") clearActiveVote();
 
   gameState.engine.quit();
   gameState.status = GameStatus.Over;
@@ -40,50 +43,59 @@ export function endGame(
   const message = reasonMessages[reason]
     ? reasonMessages[reason](winner)
     : gameOverFallback(winner);
+  gameState.endMessage = message;
 
-  sendSystemMessage(message, ctx);
-  broadcastPlayers(ctx);
+  sendSystemMessage(message);
+  broadcastPlayers();
 
   gameState.drawOffer = undefined;
   const pgn = getCleanPgn(gameState.chess);
-  io.emit("game_over", { reason, winner, pgn });
+  io.emit("game_over", { reason, winner, pgn, message });
   io.emit("draw_offer_update", { side: null });
 }
 
-// Initialize callbacks to avoid circular dependencies
-setTimeoutCallback((reason, winner) => endGame(reason, winner));
-setEndGameCallback((reason, winner) => endGame(reason, winner));
+/**
+ * Resets the game in place (same GameState object) with a fresh engine.
+ */
+export function executeGameReset(): void {
+  const gameState = getGameState();
+  const io = getIO();
+
+  // The old engine may still be running (reset mid-game): kill it before replacing
+  gameState.engine.quit();
+  resetGameState(createEngine());
+
+  sendSystemMessage(MSG.gameReset);
+  io.emit("game_reset");
+  io.emit("clock_update", {
+    whiteTime: DEFAULT_CLOCK_TIME,
+    blackTime: DEFAULT_CLOCK_TIME,
+  });
+  broadcastVote();
+}
 
 /**
  * Attempts to finalize the current turn if all active players have submitted moves.
- * @param ctx Optional context for dependency injection (defaults to global)
  */
-export function tryFinalizeTurn(ctx: IGameContext = globalContext): void {
-  const { gameState, io } = ctx;
+export function tryFinalizeTurn(): void {
+  const gameState = getGameState();
+  const io = getIO();
 
-  if (gameState.status !== GameStatus.AwaitingProposals) return;
-
-  const activeTeamPids = ctx.getActiveTeamPids(gameState.side);
-
-  // Use pure logic to check if we should finalize
-  const shouldFinalize = checkShouldFinalize(
-    {
-      status: gameState.status,
-      side: gameState.side,
-      moveNumber: gameState.moveNumber,
-      whiteTime: gameState.whiteTime,
-      blackTime: gameState.blackTime,
-      proposals: gameState.proposals,
-    },
-    { activeTeamPids }
-  );
-
-  if (!shouldFinalize) return;
+  const activeTeamPids = getActiveTeamPids(gameState.side);
+  if (
+    !shouldFinalizeTurn(
+      gameState.status,
+      activeTeamPids,
+      gameState.proposals.keys()
+    )
+  ) {
+    return;
+  }
 
   gameState.status = GameStatus.FinalizingTurn;
   io.emit("game_status_update", { status: gameState.status });
 
-  stopClock(ctx);
+  stopClock();
 
   const allEntries = [...gameState.proposals.entries()];
   const candidatesStr = allEntries.map(([, { lan }]) => lan);
@@ -98,19 +110,28 @@ export function tryFinalizeTurn(ctx: IGameContext = globalContext): void {
 
   const currentFen = gameState.chess.fen();
 
+  // A game end or reset during the engine search bumps `generation`: the position
+  // this search was started on no longer exists, so its answer must be dropped.
+  const generation = gameState.generation;
+  const isStale = () =>
+    gameState.generation !== generation ||
+    gameState.status !== GameStatus.FinalizingTurn;
+
   chooseBestMove(gameState.engine, currentFen, candidatesStr)
     .then((engineMove) => {
+      if (isStale()) return;
+
       const selected = resolveSelectedMove(engineMove, candidatesStr);
 
       if (!selected) {
         // Nothing to play: hand the turn back instead of freezing on FinalizingTurn.
         gameState.status = GameStatus.AwaitingProposals;
         io.emit("game_status_update", { status: gameState.status });
-        startClock(ctx);
+        startClock();
         return;
       }
 
-      if (selected.fallback) sendSystemMessage(MSG.engineFallback, ctx);
+      if (selected.fallback) sendSystemMessage(MSG.engineFallback);
 
       const selLan = selected.lan;
       const from = selLan.slice(0, 2);
@@ -131,7 +152,6 @@ export function tryFinalizeTurn(ctx: IGameContext = globalContext): void {
       }
       const fen = gameState.chess.fen();
 
-      // Use pure logic for increment calculation
       const currentTime =
         gameState.side === "white" ? gameState.whiteTime : gameState.blackTime;
       const increment = calculateIncrement(currentTime);
@@ -159,11 +179,10 @@ export function tryFinalizeTurn(ctx: IGameContext = globalContext): void {
         candidates: candidatesObjs,
       });
 
-      // Use pure logic to detect game over
       const gameOverResult = detectGameOver(gameState.chess, gameState.side);
 
       if (gameOverResult.isOver) {
-        endGame(gameOverResult.reason!, gameOverResult.winner ?? null, ctx);
+        endGame(gameOverResult.reason!, gameOverResult.winner ?? null);
       } else {
         gameState.proposals.clear();
         gameState.side = gameState.side === "white" ? "black" : "white";
@@ -175,7 +194,7 @@ export function tryFinalizeTurn(ctx: IGameContext = globalContext): void {
         });
         io.emit("game_status_update", { status: gameState.status });
         io.emit("position_update", { fen });
-        startClock(ctx);
+        startClock();
       }
     })
     .catch((e) => {
@@ -183,19 +202,19 @@ export function tryFinalizeTurn(ctx: IGameContext = globalContext): void {
         `CRITICAL: Engine error. FEN: ${currentFen}, Candidates: ${candidatesStr}`,
         e
       );
+      if (isStale()) return;
       gameState.status = GameStatus.AwaitingProposals;
       gameState.proposals.clear();
       io.emit("game_status_update", { status: gameState.status });
-      sendSystemMessage(MSG.systemError, ctx);
+      sendSystemMessage(MSG.systemError);
     });
 }
 
 /**
  * Ends the game if one side has no remaining players.
- * @param ctx Optional context for dependency injection (defaults to global)
  */
-export function endIfOneSided(ctx: IGameContext = globalContext): void {
-  const { gameState } = ctx;
+export function endIfOneSided(): void {
+  const gameState = getGameState();
 
   if (
     gameState.status === GameStatus.Setup ||
@@ -203,13 +222,12 @@ export function endIfOneSided(ctx: IGameContext = globalContext): void {
   )
     return;
 
-  // Use pure logic to check abandonment
   const result = shouldEndDueToAbandonment(
     gameState.whiteIds,
     gameState.blackIds
   );
 
   if (result.shouldEnd) {
-    endGame(EndReason.Abandonment, result.winner ?? null, ctx);
+    endGame(EndReason.Abandonment, result.winner ?? null);
   }
 }

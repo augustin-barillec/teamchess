@@ -1,16 +1,13 @@
 import type { Socket } from "socket.io";
 import type { Player } from "../types.js";
-import type { IGameContext } from "../context/GameContext.js";
-import { globalContext } from "../context/GlobalContextAdapter.js";
+import { sessions, getIO, getOnlinePids } from "../state.js";
 import { SENDER_SYSTEM } from "../shared_messages.js";
 
 /**
  * Broadcasts the current player list to all clients.
- * @param ctx Optional context for dependency injection (defaults to global)
  */
-export function broadcastPlayers(ctx: IGameContext = globalContext): void {
-  const { sessions, io } = ctx;
-  const onlinePids = ctx.getOnlinePids();
+export function broadcastPlayers(): void {
+  const onlinePids = getOnlinePids();
 
   const spectators: Player[] = [];
   const whitePlayers: Player[] = [];
@@ -26,18 +23,14 @@ export function broadcastPlayers(ctx: IGameContext = globalContext): void {
     else if (sess.side === "black") blackPlayers.push(p);
     else spectators.push(p);
   }
-  io.emit("players", { spectators, whitePlayers, blackPlayers });
+  getIO().emit("players", { spectators, whitePlayers, blackPlayers });
 }
 
 /**
  * Sends a system message to all clients.
- * @param ctx Optional context for dependency injection (defaults to global)
  */
-export function sendSystemMessage(
-  message: string,
-  ctx: IGameContext = globalContext
-): void {
-  ctx.io.emit("chat_message", {
+export function sendSystemMessage(message: string): void {
+  getIO().emit("chat_message", {
     sender: SENDER_SYSTEM,
     senderId: "system",
     message,

@@ -16,119 +16,52 @@ import { GameStatus } from "../shared_types.js";
 describe("turnLogic", () => {
   describe("shouldFinalizeTurn", () => {
     it("returns false when status is not AwaitingProposals", () => {
-      const state = {
-        status: GameStatus.Setup,
-        side: "white" as const,
-        moveNumber: 1,
-        whiteTime: 600,
-        blackTime: 600,
-        proposals: new Map(),
-      };
-      const online = { activeTeamPids: new Set(["p1"]) };
-
-      expect(shouldFinalizeTurn(state, online)).toBe(false);
+      expect(
+        shouldFinalizeTurn(GameStatus.Setup, new Set(["p1"]), ["p1"])
+      ).toBe(false);
+      expect(
+        shouldFinalizeTurn(GameStatus.FinalizingTurn, new Set(["p1"]), ["p1"])
+      ).toBe(false);
+      expect(shouldFinalizeTurn(GameStatus.Over, new Set(["p1"]), ["p1"])).toBe(
+        false
+      );
     });
 
     it("returns false when no active team members", () => {
-      const state = {
-        status: GameStatus.AwaitingProposals,
-        side: "white" as const,
-        moveNumber: 1,
-        whiteTime: 600,
-        blackTime: 600,
-        proposals: new Map(),
-      };
-      const online = { activeTeamPids: new Set<string>() };
-
-      expect(shouldFinalizeTurn(state, online)).toBe(false);
+      expect(
+        shouldFinalizeTurn(GameStatus.AwaitingProposals, new Set(), [])
+      ).toBe(false);
     });
 
     it("returns false when not all active players have proposed", () => {
-      const proposals = new Map([
-        ["p1", { lan: "e2e4", san: "e4", name: "Alice" }],
-      ]);
-      const state = {
-        status: GameStatus.AwaitingProposals,
-        side: "white" as const,
-        moveNumber: 1,
-        whiteTime: 600,
-        blackTime: 600,
-        proposals,
-      };
-      const online = { activeTeamPids: new Set(["p1", "p2"]) };
-
-      expect(shouldFinalizeTurn(state, online)).toBe(false);
+      expect(
+        shouldFinalizeTurn(
+          GameStatus.AwaitingProposals,
+          new Set(["p1", "p2"]),
+          ["p1"]
+        )
+      ).toBe(false);
     });
 
     it("returns true when all active players have proposed", () => {
-      const proposals = new Map([
-        ["p1", { lan: "e2e4", san: "e4", name: "Alice" }],
-        ["p2", { lan: "d2d4", san: "d4", name: "Bob" }],
-      ]);
-      const state = {
-        status: GameStatus.AwaitingProposals,
-        side: "white" as const,
-        moveNumber: 1,
-        whiteTime: 600,
-        blackTime: 600,
-        proposals,
-      };
-      const online = { activeTeamPids: new Set(["p1", "p2"]) };
-
-      expect(shouldFinalizeTurn(state, online)).toBe(true);
-    });
-
-    it("returns false when status is FinalizingTurn", () => {
-      const proposals = new Map([
-        ["p1", { lan: "e2e4", san: "e4", name: "Alice" }],
-      ]);
-      const state = {
-        status: GameStatus.FinalizingTurn,
-        side: "white" as const,
-        moveNumber: 1,
-        whiteTime: 600,
-        blackTime: 600,
-        proposals,
-      };
-      const online = { activeTeamPids: new Set(["p1"]) };
-
-      expect(shouldFinalizeTurn(state, online)).toBe(false);
-    });
-
-    it("returns false when status is Over", () => {
-      const proposals = new Map([
-        ["p1", { lan: "e2e4", san: "e4", name: "Alice" }],
-      ]);
-      const state = {
-        status: GameStatus.Over,
-        side: "white" as const,
-        moveNumber: 1,
-        whiteTime: 600,
-        blackTime: 600,
-        proposals,
-      };
-      const online = { activeTeamPids: new Set(["p1"]) };
-
-      expect(shouldFinalizeTurn(state, online)).toBe(false);
+      expect(
+        shouldFinalizeTurn(
+          GameStatus.AwaitingProposals,
+          new Set(["p1", "p2"]),
+          ["p1", "p2"]
+        )
+      ).toBe(true);
     });
 
     it("ignores proposals from offline players", () => {
-      const proposals = new Map([
-        ["p1", { lan: "e2e4", san: "e4", name: "Alice" }],
-        ["p3", { lan: "d2d4", san: "d4", name: "Charlie" }], // offline
-      ]);
-      const state = {
-        status: GameStatus.AwaitingProposals,
-        side: "white" as const,
-        moveNumber: 1,
-        whiteTime: 600,
-        blackTime: 600,
-        proposals,
-      };
-      // Only p1 and p2 are online, p3 is offline
-      const online = { activeTeamPids: new Set(["p1", "p2"]) };
-
-      expect(shouldFinalizeTurn(state, online)).toBe(false);
+      // p3 proposed then went offline; p2 is online and has not proposed yet
+      expect(
+        shouldFinalizeTurn(
+          GameStatus.AwaitingProposals,
+          new Set(["p1", "p2"]),
+          ["p1", "p3"]
+        )
+      ).toBe(false);
     });
   });
 

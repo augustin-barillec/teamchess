@@ -15,6 +15,11 @@ export function loadEngine(path: string): Engine {
     console.error("Stockfish engine process error:", err);
   });
 
+  // A quit engine must never crash the server: without this handler, a write to
+  // a dead stdin (e.g. the search-timeout "stop" arriving after quit()) raises
+  // an uncaught EPIPE that would take the whole process down.
+  proc.stdin.on("error", () => {});
+
   let pendingCallback: ((output: string) => void) | undefined;
 
   proc.stdout.on("data", (data: Buffer) => {
@@ -36,6 +41,7 @@ export function loadEngine(path: string): Engine {
 
   return {
     send(command: string, callback?: (output: string) => void) {
+      if (proc.killed) return;
       const cmd = command.trim();
 
       if (

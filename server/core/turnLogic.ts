@@ -3,35 +3,25 @@ import { GameStatus, EndReason } from "../shared_types.js";
 import type { PlayerSide } from "../types.js";
 import { INCREMENT_THRESHOLD, TIME_INCREMENT } from "../constants.js";
 
-export interface TurnState {
-  status: GameStatus;
-  side: PlayerSide;
-  moveNumber: number;
-  whiteTime: number;
-  blackTime: number;
-  proposals: Map<string, { lan: string; san: string; name: string }>;
-}
-
-export interface OnlinePlayerInfo {
-  activeTeamPids: Set<string>;
-}
-
 /**
- * Determines if a turn should be finalized based on current state.
+ * Determines if a turn should be finalized: every online member of the team to
+ * move has proposed. Proposals from players who since went offline still exist
+ * but do not count toward the threshold.
  * Pure function - no side effects.
  */
 export function shouldFinalizeTurn(
-  state: TurnState,
-  online: OnlinePlayerInfo
+  status: GameStatus,
+  activeTeamPids: ReadonlySet<string>,
+  proposalPids: Iterable<string>
 ): boolean {
-  if (state.status !== GameStatus.AwaitingProposals) return false;
-  if (online.activeTeamPids.size === 0) return false;
+  if (status !== GameStatus.AwaitingProposals) return false;
+  if (activeTeamPids.size === 0) return false;
 
-  const onlineProposalCount = [...state.proposals.keys()].filter((pid) =>
-    online.activeTeamPids.has(pid)
-  ).length;
-
-  return onlineProposalCount === online.activeTeamPids.size;
+  let onlineProposalCount = 0;
+  for (const pid of proposalPids) {
+    if (activeTeamPids.has(pid)) onlineProposalCount++;
+  }
+  return onlineProposalCount === activeTeamPids.size;
 }
 
 /**
