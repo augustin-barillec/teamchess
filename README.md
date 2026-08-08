@@ -237,3 +237,9 @@ docker compose build --no-cache
 docker compose up -d
 
 ```
+
+5. **Cleaning**
+
+```sh
+docker system prune -a
+```
