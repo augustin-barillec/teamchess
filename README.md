@@ -178,7 +178,7 @@ gcloud compute ssh teamchess-server --zone=europe-west1-b
 
 ```sh
 git clone <YOUR_REPO_URL>
-cd teamchess
+cd teamchess-web
 
 ```
 
@@ -219,7 +219,7 @@ gcloud compute ssh teamchess-server --zone=europe-west1-b
 2. **Navigate** to your project directory:
 
 ```sh
-cd teamchess
+cd teamchess-web
 
 ```
 
