@@ -50,14 +50,12 @@ export const MSG = {
   teamVoteFailed: (type: VoteType) =>
     `❌ Vote to ${formatVoteType(type)} failed.`,
 
-  // Kick vote messages
-  kickVoteFailed: (target: string) => `❌ Vote to kick ${target} failed.`,
+  // Kick messages (a lead power)
   playerKicked: (name: string) => `${name} has been kicked.`,
-  youHaveBeenKicked: "You have been kicked by vote.",
+  youHaveBeenKicked: "You have been kicked from the game.",
 
-  // Reset vote messages
+  // Reset message (a lead power)
   gameReset: "🔄 Game has been reset.",
-  resetVoteFailed: "❌ Vote to reset the game failed.",
 
   // Welcome message for new players
   welcomeMessage: `Welcome to TeamChess!\n\nHow it works:\n• Each player on a team proposes a move\n• Stockfish 18 (depth 15, ~3000 ELO) picks the strongest candidate\n\nTime control:\n• 10 min per side\n• +10s added at the end of each turn when under 1 min\n\nJoin White or Black to play!`,
@@ -72,7 +70,8 @@ export const MSG = {
   errorNotEligible: "You are not eligible to vote.",
   errorTargetNotFound: "Target player not found.",
   errorVoteInProgress: "Another vote is already in progress.",
-  errorCannotKickSelf: "You cannot vote to kick yourself",
+  errorLeadOnly: "Only the lead can do that.",
+  errorCannotKickSelf: "You cannot kick yourself.",
   errorOnlyWhiteStart: "Only the White team can start the game.",
   errorBothTeamsRequired: "Both teams must have at least one player to start.",
   errorNotAccepting: "Not accepting moves right now.",

@@ -1,15 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { Chess } from "chess.js";
 import { toast } from "react-hot-toast";
 import {
   Players,
+  PlayersUpdate,
   GameInfo,
   Proposal,
   Selection,
   ChatMessage,
   GameStatus,
-  ActiveVoteState,
+  TeamVoteState,
 } from "../types";
 import { Turn } from "../types";
 import { STORAGE_KEYS } from "../constants";
@@ -18,8 +19,6 @@ import { sounds } from "../soundEngine";
 
 interface UseSocketProps {
   chess: Chess;
-  isMobile: boolean;
-  activeTabRef: React.MutableRefObject<string>;
 }
 
 interface UseSocketReturn {
@@ -34,6 +33,8 @@ interface UseSocketReturn {
     React.SetStateAction<"spectator" | "white" | "black">
   >;
   players: Players;
+  /** The player who may kick and reset — the longest-present one. */
+  leadId: string | null;
   gameStatus: GameStatus;
   pgn: string;
   chatMessages: ChatMessage[];
@@ -42,16 +43,10 @@ interface UseSocketReturn {
   clocks: { whiteTime: number; blackTime: number };
   lastMoveSquares: { from: string; to: string } | null;
   drawOffer: "white" | "black" | null;
-  activeVote: ActiveVoteState | null;
-  hasUnreadMessages: boolean;
-  setHasUnreadMessages: React.Dispatch<React.SetStateAction<boolean>>;
+  activeVote: TeamVoteState | null;
 }
 
-export function useSocket({
-  chess,
-  isMobile,
-  activeTabRef,
-}: UseSocketProps): UseSocketReturn {
+export function useSocket({ chess }: UseSocketProps): UseSocketReturn {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [amDisconnected, setAmDisconnected] = useState(false);
   const [myId, setMyId] = useState<string>(
@@ -74,6 +69,7 @@ export function useSocket({
     whitePlayers: [],
     blackPlayers: [],
   });
+  const [leadId, setLeadId] = useState<string | null>(null);
   const [gameStatus, setGameStatus] = useState<GameStatus>(GameStatus.Setup);
   const [pgn, setPgn] = useState("");
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -85,16 +81,7 @@ export function useSocket({
     to: string;
   } | null>(null);
   const [drawOffer, setDrawOffer] = useState<"white" | "black" | null>(null);
-  const [activeVote, setActiveVote] = useState<ActiveVoteState | null>(null);
-  const [hasUnreadMessages, setHasUnreadMessages] = useState(false);
-
-  // Handlers are registered once per socket; they read isMobile through a ref
-  // so a viewport change never re-registers them (re-registering used to
-  // disconnect the socket for good — a manual disconnect() is never retried).
-  const isMobileRef = useRef(isMobile);
-  useEffect(() => {
-    isMobileRef.current = isMobile;
-  }, [isMobile]);
+  const [activeVote, setActiveVote] = useState<TeamVoteState | null>(null);
 
   // Socket initialization
   useEffect(() => {
@@ -159,7 +146,10 @@ export function useSocket({
       }
     );
 
-    socket.on("players", (p: Players) => setPlayers(p));
+    socket.on("players", ({ leadId: lead, ...p }: PlayersUpdate) => {
+      setPlayers(p);
+      setLeadId(lead);
+    });
 
     socket.on(
       "game_started",
@@ -254,28 +244,16 @@ export function useSocket({
       setTurns((ts) => [...ts, { moveNumber, side, proposals: [] }])
     );
 
-    socket.on(
-      "game_over",
-      ({ pgn: newPgn, message }: { pgn: string; message: string }) => {
-        setGameStatus(GameStatus.Over);
-        setPgn(newPgn);
-        setDrawOffer(null);
+    socket.on("game_over", ({ pgn: newPgn }: { pgn: string }) => {
+      setGameStatus(GameStatus.Over);
+      setPgn(newPgn);
+      setDrawOffer(null);
 
-        sounds.play("end");
-
-        if (isMobileRef.current && message) {
-          toast(message, {
-            duration: 5000,
-            icon: "♟️",
-          });
-        }
-      }
-    );
+      sounds.play("end");
+    });
 
     socket.on("chat_message", (msg: ChatMessage) => {
       setChatMessages((msgs) => [...msgs, msg]);
-      if (!msg.system && activeTabRef.current !== "chat")
-        setHasUnreadMessages(true);
     });
 
     socket.on("game_status_update", ({ status }: { status: GameStatus }) => {
@@ -286,17 +264,10 @@ export function useSocket({
       "draw_offer_update",
       ({ side }: { side: "white" | "black" | null }) => {
         setDrawOffer(side as "white" | "black" | null);
-        if (side && isMobileRef.current) {
-          const teamName = side.charAt(0).toUpperCase() + side.slice(1);
-          toast(UI.toastDrawOffer(teamName), {
-            icon: "🤝",
-            duration: 4000,
-          });
-        }
       }
     );
 
-    socket.on("vote_update", (state: ActiveVoteState | null) => {
+    socket.on("vote_update", (state: TeamVoteState | null) => {
       setActiveVote(state);
     });
 
@@ -310,7 +281,7 @@ export function useSocket({
       // for good (socket.io never auto-reconnects after a manual disconnect).
       socket.removeAllListeners();
     };
-  }, [socket, chess, activeTabRef]);
+  }, [socket, chess]);
 
   return {
     socket,
@@ -322,6 +293,7 @@ export function useSocket({
     side,
     setSide,
     players,
+    leadId,
     gameStatus,
     pgn,
     chatMessages,
@@ -331,7 +303,5 @@ export function useSocket({
     lastMoveSquares,
     drawOffer,
     activeVote,
-    hasUnreadMessages,
-    setHasUnreadMessages,
   };
 }

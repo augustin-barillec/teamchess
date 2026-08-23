@@ -1,11 +1,6 @@
 export { DEFAULT_PLAYER_NAME } from "../../server/shared_messages";
 
 export const UI = {
-  // Tabs
-  tabPlayers: "Players",
-  tabMoves: "Moves",
-  tabChat: "Chat",
-
   // Section headings
   headingPlayers: "Players",
   headingMoves: "Moves",
@@ -26,9 +21,9 @@ export const UI = {
 
   // Buttons
   btnKick: "Kick",
-  btnClose: "Close",
   btnJoin: "Join",
   playedThisTurn: "Played this turn",
+  leadLabel: "Lead",
 
   // Icon-button labels & tooltips
   btnResignLabel: "Resign",
@@ -45,14 +40,11 @@ export const UI = {
   voteTypeResign: "Resign",
   voteTypeOfferDraw: "Offer Draw",
   voteTypeAcceptDraw: "Accept Draw",
-  voteResetGame: "Vote: Reset Game",
   votingOnDraw: "Voting on draw...",
   voteInProgress: "Vote in progress.",
 
-  // Kick vote
-  kickVoteTargetSelf: "Vote: Kick you",
-  voteKickTitle: (name: string) => `Vote: Kick ${name}`,
-  kickVoteTooltip: (name: string) => `Vote to kick ${name}`,
+  // Kick (a lead power)
+  kickTooltip: (name: string) => `Kick ${name}`,
 
   // Status
   noMovesYet: "No moves played yet.",
@@ -65,15 +57,14 @@ export const UI = {
   confirmResign: "Are you sure you want to resign?",
   confirmOfferDraw: "Are you sure you want to offer a draw?",
   confirmResetGame: "Are you sure you want to reset the game?",
+  confirmKick: (name: string) => `Kick ${name}?`,
   confirmOk: "Confirm",
   confirmCancel: "Cancel",
 
   // Toasts
-  toastMoveSubmitted: "Move submitted",
   toastPgnCopied: "PGN copied!",
   toastPgnCopyFailed: "Could not copy PGN.",
   toastIllegalMove: "Illegal move!",
   toastOnlyWhiteStart: "Only White can make the first move.",
-  toastDrawOffer: (teamName: string) => `Draw offer from the ${teamName} team.`,
-  toastKicked: "You have been kicked by vote.",
+  toastKicked: "You have been kicked from the game.",
 } as const;

@@ -10,6 +10,12 @@ export type Players = {
   blackPlayers: Player[];
 };
 
+/**
+ * The `players` broadcast. The lead ships with the roster rather than in its own
+ * event so a client can never render a crown on a player it has not heard of.
+ */
+export type PlayersUpdate = Players & { leadId: string | null };
+
 export type ChatMessage = {
   sender: string;
   senderId: string;
@@ -38,39 +44,17 @@ export type Selection = Proposal & {
 
 export type VoteType = "resign" | "offer_draw" | "accept_draw";
 
-// Only one vote can be active at a time, whatever its kind. The server sends the
-// whole state (or null) on every `vote_update`; fields are personalized per viewer.
-export type VoteKind = "team" | "kick" | "reset";
-
-interface VoteStateBase {
+// Only one team vote can be active at a time. The server sends the whole state
+// (or null) on every `vote_update`; fields are personalized per viewer.
+export interface TeamVoteState {
+  side: "white" | "black";
+  type: VoteType;
   yesVotes: string[];
-  noVotes: string[];
   requiredVotes: number;
   endTime: number;
   myVoteEligible: boolean;
-  myCurrentVote: "yes" | "no" | null;
+  myCurrentVote: "yes" | null;
 }
-
-export interface TeamVoteState extends VoteStateBase {
-  kind: "team";
-  side: "white" | "black";
-  type: VoteType;
-}
-
-export interface KickVoteState extends VoteStateBase {
-  kind: "kick";
-  targetId: string;
-  targetName: string;
-  totalVoters: number;
-  amTarget: boolean;
-}
-
-export interface ResetVoteState extends VoteStateBase {
-  kind: "reset";
-  totalVoters: number;
-}
-
-export type ActiveVoteState = TeamVoteState | KickVoteState | ResetVoteState;
 
 export enum GameStatus {
   Setup = "Setup",

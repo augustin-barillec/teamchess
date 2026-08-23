@@ -2,11 +2,11 @@ import { describe, it, expect } from "vitest";
 import { UI } from "./messages.js";
 
 describe("messages", () => {
-  it("toastDrawOffer includes the team name", () => {
-    expect(UI.toastDrawOffer("White")).toBe("Draw offer from the White team.");
+  it("kickTooltip includes the player name", () => {
+    expect(UI.kickTooltip("Alice")).toBe("Kick Alice");
   });
 
-  it("kickVoteTooltip includes the player name", () => {
-    expect(UI.kickVoteTooltip("Alice")).toBe("Vote to kick Alice");
+  it("confirmKick includes the player name", () => {
+    expect(UI.confirmKick("Alice")).toBe("Kick Alice?");
   });
 });

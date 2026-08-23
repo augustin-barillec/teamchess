@@ -10,13 +10,13 @@ export type Turn = {
 export type {
   Player,
   Players,
+  PlayersUpdate,
   ChatMessage,
   GameInfo,
   Proposal,
   Selection,
   VoteType,
-  VoteKind,
-  ActiveVoteState,
+  TeamVoteState,
 } from "../../server/shared_types";
 
 export { GameStatus, EndReason } from "../../server/shared_types";

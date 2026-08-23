@@ -32,8 +32,8 @@ export function endGame(reason: string, winner: string | null = null): void {
   gameState.generation++;
   stopClock();
 
-  // Team votes are meaningless once the game is over; kick/reset votes survive it
-  if (gameState.activeVote?.kind === "team") clearActiveVote();
+  // A team vote is meaningless once the game is over
+  clearActiveVote();
 
   gameState.engine.quit();
   gameState.status = GameStatus.Over;

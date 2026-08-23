@@ -16,6 +16,8 @@ export function leave(socket: Socket): void {
   const sess = sessions.get(pid);
   if (!sess) return;
 
+  // Dropping the session is also what hands over the lead when the lead leaves:
+  // see getLeadId(). Until then a disconnected lead keeps the role.
   const finalize = () => {
     if (sess.side === "white") gameState.whiteIds.delete(pid);
     if (sess.side === "black") gameState.blackIds.delete(pid);

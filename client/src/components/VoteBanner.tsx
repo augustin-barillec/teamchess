@@ -1,11 +1,10 @@
 interface VoteBannerProps {
   title: string;
   yesVotes: string[];
-  noVotes?: string[];
   requiredVotes: number;
   timeLeft: number;
   myVoteEligible: boolean;
-  myCurrentVote?: "yes" | "no" | null;
+  myCurrentVote?: "yes" | null;
   onYes: () => void;
   onNo: () => void;
 }
@@ -13,7 +12,6 @@ interface VoteBannerProps {
 export const VoteBanner: React.FC<VoteBannerProps> = ({
   title,
   yesVotes,
-  noVotes,
   requiredVotes,
   timeLeft,
   myVoteEligible,
@@ -33,12 +31,6 @@ export const VoteBanner: React.FC<VoteBannerProps> = ({
               &bull; Yes: {yesVotes.join(", ")}
             </span>
           )}
-          {noVotes && noVotes.length > 0 && (
-            <span className="vote-banner-no-list">
-              {" "}
-              &bull; No: {noVotes.join(", ")}
-            </span>
-          )}
         </div>
       </div>
       <div className="vote-banner-buttons">
@@ -51,10 +43,10 @@ export const VoteBanner: React.FC<VoteBannerProps> = ({
         </button>
         <button
           onClick={onNo}
-          disabled={!myVoteEligible || myCurrentVote === "no"}
+          disabled={!myVoteEligible}
           className="vote-no-btn"
         >
-          {noVotes ? `No (${noVotes.length})` : "No"}
+          No
         </button>
       </div>
     </div>

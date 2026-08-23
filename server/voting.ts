@@ -1,44 +1,29 @@
-import type {
-  InternalActiveVote,
-  InternalTeamVote,
-  InternalKickVote,
-  InternalResetVote,
-  PlayerSide,
-  VoteType,
-} from "./types.js";
-import type { ActiveVoteState } from "./shared_types.js";
+import type { InternalTeamVote, PlayerSide, VoteType } from "./types.js";
+import type { TeamVoteState } from "./shared_types.js";
 import { EndReason } from "./shared_types.js";
-import {
-  TEAM_VOTE_DURATION_MS,
-  KICK_VOTE_DURATION_MS,
-  RESET_VOTE_DURATION_MS,
-} from "./constants.js";
+import { TEAM_VOTE_DURATION_MS } from "./constants.js";
 import {
   sessions,
   getGameState,
   getIO,
   getAllSockets,
   getActiveTeamPids,
-  getOnlinePids,
 } from "./state.js";
 import { sendSystemMessage } from "./utils/messaging.js";
 import { MSG } from "./shared_messages.js";
-import { endGame, executeGameReset } from "./game/gameLogic.js";
-import { executeKick } from "./players/playerManager.js";
+import { endGame } from "./game/gameLogic.js";
 
 /**
- * The single active-vote slot: only one vote of any kind can run at a time.
+ * Team votes (resign / offer_draw / accept_draw) — the only votes in the game:
+ * kicking and resetting are lead powers, not votes.
  *
- * The electorate is frozen when the vote is created: `eligibleVoters` maps every
- * voter to the name they had at that instant, and neither it nor `required`
- * changes afterwards, whoever joins or leaves. A voter who leaves mid-vote keeps
- * both their recorded ballot and the name the vote recorded for them.
+ * Only one vote can run at a time. The electorate is frozen when the vote is
+ * created: `eligibleVoters` maps every voter to the name they had at that
+ * instant, and neither it nor `required` changes afterwards, whoever joins or
+ * leaves. A voter who leaves mid-vote keeps both their recorded ballot and the
+ * name the vote recorded for them.
  *
- * Two rule sets:
- * - Team votes (resign / offer_draw / accept_draw): unanimity, yes-only — a
- *   single "no" fails the vote instantly.
- * - Majority votes (kick / reset): strict majority (floor(total/2) + 1), voters
- *   may switch between yes and no until the outcome is decided.
+ * The rule is unanimity, yes-only — a single "no" fails the vote instantly.
  */
 
 /** Snapshots pids as pid -> name, to freeze a vote's electorate at creation. */
@@ -60,60 +45,23 @@ function voterNames(
   return [...pids].map((pid) => roster.get(pid) || "Unknown");
 }
 
-function currentVoteOf(
-  pid: string,
-  vote: InternalKickVote | InternalResetVote
-): "yes" | "no" | null {
-  if (vote.yesVoters.has(pid)) return "yes";
-  if (vote.noVoters.has(pid)) return "no";
-  return null;
-}
-
 /**
  * Gets the active vote formatted for a specific client, or null when no vote is
- * running. Personalizes `myVoteEligible`, `myCurrentVote` and `amTarget`.
+ * running. Personalizes `myVoteEligible` and `myCurrentVote`.
  */
-export function getVoteClientData(viewerPid: string): ActiveVoteState | null {
+export function getVoteClientData(viewerPid: string): TeamVoteState | null {
   const vote = getGameState().activeVote;
   if (!vote) return null;
 
-  const base = {
+  return {
+    side: vote.side,
+    type: vote.type,
     yesVotes: voterNames(vote.yesVoters, vote.eligibleVoters),
     requiredVotes: vote.required,
     endTime: vote.endTime,
     myVoteEligible: vote.eligibleVoters.has(viewerPid),
+    myCurrentVote: vote.yesVoters.has(viewerPid) ? "yes" : null,
   };
-
-  switch (vote.kind) {
-    case "team":
-      return {
-        kind: "team",
-        side: vote.side,
-        type: vote.type,
-        ...base,
-        noVotes: [],
-        myCurrentVote: vote.yesVoters.has(viewerPid) ? "yes" : null,
-      };
-    case "kick":
-      return {
-        kind: "kick",
-        targetId: vote.targetId,
-        targetName: vote.targetName,
-        totalVoters: vote.total,
-        amTarget: vote.targetId === viewerPid,
-        ...base,
-        noVotes: voterNames(vote.noVoters, vote.eligibleVoters),
-        myCurrentVote: currentVoteOf(viewerPid, vote),
-      };
-    case "reset":
-      return {
-        kind: "reset",
-        totalVoters: vote.total,
-        ...base,
-        noVotes: voterNames(vote.noVoters, vote.eligibleVoters),
-        myCurrentVote: currentVoteOf(viewerPid, vote),
-      };
-  }
 }
 
 /**
@@ -130,7 +78,7 @@ export function broadcastVote(): void {
 }
 
 /**
- * Clears the active vote, whatever its kind.
+ * Clears the active vote.
  */
 export function clearActiveVote(): void {
   const gameState = getGameState();
@@ -142,29 +90,18 @@ export function clearActiveVote(): void {
   }
 }
 
-function voteFailedMessage(vote: InternalActiveVote): string {
-  switch (vote.kind) {
-    case "team":
-      return MSG.teamVoteFailed(vote.type);
-    case "kick":
-      return MSG.kickVoteFailed(vote.targetName);
-    case "reset":
-      return MSG.resetVoteFailed;
-  }
-}
-
 /**
- * Fails the active vote (explicit "no" on a team vote, unreachable majority, or
- * timeout): clears it, announces it, and rejects a pending draw offer.
+ * Fails the active vote (an explicit "no", or a timeout): clears it, announces
+ * it, and rejects a pending draw offer.
  */
-function failVote(vote: InternalActiveVote): void {
+function failVote(vote: InternalTeamVote): void {
   const gameState = getGameState();
   clearTimeout(vote.timer);
   gameState.activeVote = undefined;
 
-  sendSystemMessage(voteFailedMessage(vote));
+  sendSystemMessage(MSG.teamVoteFailed(vote.type));
 
-  if (vote.kind === "team" && vote.type === "accept_draw") {
+  if (vote.type === "accept_draw") {
     gameState.drawOffer = undefined;
     getIO().emit("draw_offer_update", { side: null });
   }
@@ -172,22 +109,19 @@ function failVote(vote: InternalActiveVote): void {
   broadcastVote();
 }
 
-/** An active vote before its timer is armed (plain Omit would collapse the union). */
-type PendingVote =
-  | Omit<InternalTeamVote, "timer" | "endTime">
-  | Omit<InternalKickVote, "timer" | "endTime">
-  | Omit<InternalResetVote, "timer" | "endTime">;
-
 /**
  * Installs a vote in the single active-vote slot: arms its expiration timer and
  * broadcasts it. The caller must have checked the slot is free.
  */
-function installVote(vote: PendingVote, durationMs: number): void {
-  const fullVote = {
+function installVote(
+  vote: Omit<InternalTeamVote, "timer" | "endTime">,
+  durationMs: number
+): void {
+  const fullVote: InternalTeamVote = {
     ...vote,
     endTime: Date.now() + durationMs,
     timer: setTimeout(() => failVote(fullVote), durationMs),
-  } as InternalActiveVote;
+  };
 
   getGameState().activeVote = fullVote;
   broadcastVote();
@@ -248,7 +182,6 @@ export function startTeamVote(
 
   installVote(
     {
-      kind: "team",
       side,
       type,
       initiatorId,
@@ -263,88 +196,9 @@ export function startTeamVote(
 }
 
 /**
- * Starts a kick vote against a target player. The target counts toward the
- * majority threshold but cannot vote.
- */
-export function startKickVote(
-  initiatorId: string,
-  targetId: string,
-  targetName: string
-): { error?: string } {
-  const gameState = getGameState();
-
-  if (gameState.activeVote) {
-    return { error: MSG.errorVoteInProgress };
-  }
-  if (initiatorId === targetId) {
-    return { error: MSG.errorCannotKickSelf };
-  }
-
-  // Snapshot all connected players (pid -> name) as the vote's frozen electorate
-  const allConnected = rosterOf(getOnlinePids());
-  const eligibleVoters = new Map(allConnected);
-  eligibleVoters.delete(targetId);
-
-  installVote(
-    {
-      kind: "kick",
-      targetId,
-      targetName,
-      initiatorId,
-      yesVoters: new Set([initiatorId]),
-      noVoters: new Set(),
-      eligibleVoters,
-      required: Math.floor(allConnected.size / 2) + 1,
-      total: allConnected.size,
-    },
-    KICK_VOTE_DURATION_MS
-  );
-
-  return {};
-}
-
-/**
- * Starts a reset vote among all connected players.
- * Returns { passedImmediately: true } when solo player (1/1 majority).
- */
-export function startResetVote(initiatorId: string): {
-  error?: string;
-  passedImmediately?: boolean;
-} {
-  const gameState = getGameState();
-
-  if (gameState.activeVote) {
-    return { error: MSG.errorVoteInProgress };
-  }
-
-  // Snapshot all connected players (pid -> name) as the vote's frozen electorate
-  const allConnected = rosterOf(getOnlinePids());
-
-  // Solo player: 1/1 = majority, pass immediately
-  if (allConnected.size <= 1) {
-    return { passedImmediately: true };
-  }
-
-  installVote(
-    {
-      kind: "reset",
-      initiatorId,
-      yesVoters: new Set([initiatorId]),
-      noVoters: new Set(),
-      eligibleVoters: allConnected,
-      required: Math.floor(allConnected.size / 2) + 1,
-      total: allConnected.size,
-    },
-    RESET_VOTE_DURATION_MS
-  );
-
-  return {};
-}
-
-/**
- * Applies a yes/no ballot to whatever vote is currently active. Eligibility is
- * decided solely by the vote's frozen electorate. Executes the outcome when the
- * ballot decides the vote.
+ * Applies a yes/no ballot to the active vote. Eligibility is decided solely by
+ * the vote's frozen electorate. Unanimity is required, so a single "no" fails
+ * the vote outright; the last missing "yes" executes it.
  */
 export function castVote(
   voterId: string,
@@ -357,48 +211,19 @@ export function castVote(
     return { error: MSG.errorNotEligible };
   }
 
-  if (vote.kind === "team") {
-    // Unanimity: a single "no" fails the vote instantly
-    if (choice === "no") {
-      failVote(vote);
-      return {};
-    }
-    if (vote.yesVoters.has(voterId)) return {};
-    vote.yesVoters.add(voterId);
-
-    if (vote.yesVoters.size >= vote.required) {
-      clearActiveVote();
-      executeTeamVoteResult(vote.side, vote.type);
-    } else {
-      broadcastVote();
-    }
+  if (choice === "no") {
+    failVote(vote);
     return {};
   }
 
-  // Majority votes (kick / reset): voters may switch sides
-  if (choice === "yes") {
-    if (vote.yesVoters.has(voterId)) return {};
-    vote.noVoters.delete(voterId);
-    vote.yesVoters.add(voterId);
+  if (vote.yesVoters.has(voterId)) return {};
+  vote.yesVoters.add(voterId);
 
-    if (vote.yesVoters.size >= vote.required) {
-      clearActiveVote();
-      if (vote.kind === "kick") executeKick(vote.targetId, vote.targetName);
-      else executeGameReset();
-      return {};
-    }
+  if (vote.yesVoters.size >= vote.required) {
+    clearActiveVote();
+    executeTeamVoteResult(vote.side, vote.type);
   } else {
-    if (vote.noVoters.has(voterId)) return {};
-    vote.yesVoters.delete(voterId);
-    vote.noVoters.add(voterId);
-
-    // Fail as soon as a majority becomes unreachable
-    if (vote.eligibleVoters.size - vote.noVoters.size < vote.required) {
-      failVote(vote);
-      return {};
-    }
+    broadcastVote();
   }
-
-  broadcastVote();
   return {};
 }

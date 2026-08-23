@@ -1,6 +1,6 @@
 import { Socket } from "socket.io";
 import { Chess } from "chess.js";
-import { sessions, getGameState, getIO } from "../state.js";
+import { sessions, getGameState, getIO, isLead } from "../state.js";
 import { GameStatus, VoteType } from "../types.js";
 import { broadcastPlayers } from "../utils/messaging.js";
 import {
@@ -9,12 +9,8 @@ import {
   executeGameReset,
 } from "../game/gameLogic.js";
 import { startClock } from "../game/clock.js";
-import {
-  startTeamVote,
-  startKickVote,
-  startResetVote,
-  castVote,
-} from "../voting.js";
+import { startTeamVote, castVote } from "../voting.js";
+import { executeKick } from "../players/playerManager.js";
 import { MSG } from "../shared_messages.js";
 
 export function handleSetName(socket: Socket, name: string): void {
@@ -61,20 +57,16 @@ export function handleJoinSide(
   cb?.({ success: true });
 }
 
+/** Resetting the game is a lead power: it takes effect immediately, no vote. */
 export function handleResetGame(
   socket: Socket,
   cb?: (res: { success?: boolean; error?: string }) => void
 ): void {
-  const result = startResetVote(socket.data.pid);
-
-  if (result.error) {
-    return cb?.({ error: result.error });
+  if (!isLead(socket.data.pid)) {
+    return cb?.({ error: MSG.errorLeadOnly });
   }
 
-  if (result.passedImmediately) {
-    executeGameReset();
-  }
-
+  executeGameReset();
   cb?.({ success: true });
 }
 
@@ -177,21 +169,26 @@ export function handleStartTeamVote(socket: Socket, type: VoteType): void {
   }
 }
 
-export function handleStartKickVote(socket: Socket, targetId: string): void {
-  const initiatorPid = socket.data.pid;
+/** Kicking is a lead power: it takes effect immediately, no vote. */
+export function handleKickPlayer(socket: Socket, targetId: string): void {
+  const pid = socket.data.pid;
 
-  // Validate target exists
+  if (!isLead(pid)) {
+    socket.emit("error", { message: MSG.errorLeadOnly });
+    return;
+  }
+  if (pid === targetId) {
+    socket.emit("error", { message: MSG.errorCannotKickSelf });
+    return;
+  }
+
   const targetSess = sessions.get(targetId);
   if (!targetSess) {
     socket.emit("error", { message: MSG.errorTargetNotFound });
     return;
   }
 
-  const result = startKickVote(initiatorPid, targetId, targetSess.name);
-
-  if (result.error) {
-    socket.emit("error", { message: result.error });
-  }
+  executeKick(targetId, targetSess.name);
 }
 
 /**

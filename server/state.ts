@@ -70,6 +70,26 @@ export function resetGameState(engine: Engine): void {
   Object.assign(gameState, fresh);
 }
 
+// --- Lead ---
+
+/**
+ * The lead — the player who may kick others and reset the game.
+ *
+ * It is not stored: it is simply the oldest session, `sessions` being insertion
+ * ordered by arrival. So the first player to connect leads, and when they leave
+ * (their session is dropped, after the reconnection grace period) the next
+ * longest-present player takes over, with no bookkeeping to keep in sync. A lead
+ * who is merely disconnected keeps the role until their grace period expires.
+ */
+export function getLeadId(): string | null {
+  const first = sessions.keys().next();
+  return first.done ? null : first.value;
+}
+
+export function isLead(pid: string): boolean {
+  return getLeadId() === pid;
+}
+
 // --- Presence helpers ---
 
 export function getOnlinePids(): Set<string> {

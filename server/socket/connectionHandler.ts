@@ -18,7 +18,7 @@ import {
   handlePlayMove,
   handleChatMessage,
   handleStartTeamVote,
-  handleStartKickVote,
+  handleKickPlayer,
   handleCastVote,
 } from "./eventHandlers.js";
 
@@ -136,8 +136,8 @@ export function setupConnectionHandler(): void {
       handleStartTeamVote(socket, type)
     );
 
-    socket.on("start_kick_vote", (targetId: string) =>
-      handleStartKickVote(socket, targetId)
+    socket.on("kick_player", (targetId: string) =>
+      handleKickPlayer(socket, targetId)
     );
 
     socket.on("cast_vote", (vote: "yes" | "no") =>

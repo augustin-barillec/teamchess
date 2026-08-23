@@ -17,10 +17,7 @@ import { GameStatus, VoteType } from "./types";
 import { STORAGE_KEYS } from "./constants";
 import { UI } from "./messages";
 import { calculateMaterial } from "./materialCalc";
-import {
-  shouldConfirmTeamAction,
-  shouldConfirmResetGame,
-} from "./confirmUtils";
+import { shouldConfirmTeamAction } from "./confirmUtils";
 import { useSocket } from "./hooks/useSocket";
 import { NameChangeModal } from "./components/NameChangeModal";
 import { ConfirmModal } from "./components/ConfirmModal";
@@ -34,8 +31,6 @@ import { sounds } from "./soundEngine";
 
 export default function App() {
   const [chess] = useState(new Chess());
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
-  const activeTabRef = useRef<string>("players");
 
   const {
     socket,
@@ -47,6 +42,7 @@ export default function App() {
     side,
     setSide,
     players,
+    leadId,
     gameStatus,
     pgn,
     chatMessages,
@@ -56,9 +52,9 @@ export default function App() {
     lastMoveSquares,
     drawOffer,
     activeVote,
-    hasUnreadMessages,
-    setHasUnreadMessages,
-  } = useSocket({ chess, isMobile, activeTabRef });
+  } = useSocket({ chess });
+
+  const amILead = !!myId && myId === leadId;
 
   const [legalSquareStyles, setLegalSquareStyles] = useState<
     Record<string, CSSProperties>
@@ -69,11 +65,7 @@ export default function App() {
   } | null>(null);
   const boardContainerRef = useRef<HTMLDivElement>(null);
   const [boardWidth, setBoardWidth] = useState(600);
-  const [activeTab, setActiveTab] = useState<"chat" | "moves" | "players">(
-    "players"
-  );
   const movesRef = useRef<HTMLDivElement>(null);
-  const [isMobileInfoVisible, setIsMobileInfoVisible] = useState(false);
   const [isNameModalOpen, setIsNameModalOpen] = useState(false);
   const [pendingTeamVote, setPendingTeamVote] = useState<VoteType | null>(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -125,19 +117,9 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const checkIsMobile = () => setIsMobile(window.innerWidth <= 900);
-    window.addEventListener("resize", checkIsMobile);
-    return () => window.removeEventListener("resize", checkIsMobile);
-  }, []);
-
-  useEffect(() => {
     if (movesRef.current)
       movesRef.current.scrollTop = movesRef.current.scrollHeight;
-  }, [turns, activeTab]);
-
-  useEffect(() => {
-    activeTabRef.current = activeTab;
-  }, [activeTab]);
+  }, [turns]);
 
   useEffect(() => {
     if (isNameModalOpen && nameInputRef.current) {
@@ -162,7 +144,6 @@ export default function App() {
       else setSide(s);
       localStorage.setItem(STORAGE_KEYS.side, s);
     });
-    setIsMobileInfoVisible(false);
   };
 
   const autoAssign = () => {
@@ -173,12 +154,10 @@ export default function App() {
     else if (blackCount < whiteCount) chosen = "black";
     else chosen = Math.random() < 0.5 ? "white" : "black";
     joinSide(chosen);
-    setIsMobileInfoVisible(false);
   };
 
   const doStartTeamVote = (type: VoteType) => {
     socket?.emit("start_team_vote", type);
-    setIsMobileInfoVisible(false);
   };
 
   const startTeamVote = (type: VoteType) => {
@@ -197,37 +176,22 @@ export default function App() {
     socket?.emit("cast_vote", vote);
   };
 
-  const startKickVote = (targetId: string) => {
-    socket?.emit("start_kick_vote", targetId);
+  /** Lead power: takes effect immediately, hence the confirmation in the UI. */
+  const kickPlayer = (targetId: string) => {
+    socket?.emit("kick_player", targetId);
   };
 
+  /** Lead power: takes effect immediately, hence the confirmation in the UI. */
   const doResetGame = () => {
     socket?.emit("reset_game", (res: { success: boolean; error?: string }) => {
       if (res.error) return toast.error(res.error);
     });
-    setIsMobileInfoVisible(false);
-  };
-
-  const resetGame = () => {
-    const allPlayers = [
-      ...players.whitePlayers,
-      ...players.blackPlayers,
-      ...players.spectators,
-    ];
-    if (shouldConfirmResetGame(allPlayers)) {
-      setShowResetConfirm(true);
-      return;
-    }
-    doResetGame();
   };
 
   const submitMove = (lan: string) => {
     if (!socket) return;
     socket.emit("play_move", lan, (res: { error?: string }) => {
       if (res?.error) toast.error(res.error);
-      else if (isMobile) {
-        toast.success(UI.toastMoveSubmitted);
-      }
     });
   };
 
@@ -267,7 +231,6 @@ export default function App() {
     } finally {
       document.body.removeChild(textArea);
     }
-    setIsMobileInfoVisible(false);
   };
 
   const openNameModal = () => {
@@ -321,16 +284,15 @@ export default function App() {
         : {}),
     },
     boardWidth: boardWidth,
-    draggingPieceStyle: isMobile
-      ? {
-          transform: "translateY(-50px) scale(2)",
 
-          zIndex: 9999,
+    // The drop lands on the square under the *cursor*, never under the dragged
+    // piece: this ring is the only thing telling the player which one that is.
+    // The library default (a 1px inset border) is invisible in practice.
+    dropSquareStyle: {
+      boxShadow:
+        "inset 0 0 0 4px rgba(255,255,255,0.9), inset 0 0 0 6px rgba(0,0,0,0.45)",
+    },
 
-          opacity: 0.9,
-          boxShadow: "0px 10px 15px rgba(0, 0, 0, 0.3)",
-        }
-      : undefined,
     onPieceDrag: ({ square }: PieceHandlerArgs) => {
       const moves = chess.moves({
         square: square as Square,
@@ -429,7 +391,7 @@ export default function App() {
     />
   );
 
-  // --- Desktop action slot (under-board icons) ---
+  // --- Action slot (under-board icons) ---
   const showBoardActions =
     gameStatus === GameStatus.AwaitingProposals &&
     (side === "white" || side === "black") &&
@@ -485,46 +447,33 @@ export default function App() {
     </button>
   ) : null;
 
-  // --- Vote banner: the single active vote, whatever its kind ---
+  // --- Vote banner: the single active team vote ---
   const teamVoteTitleMap = {
     resign: UI.voteTypeResign,
     offer_draw: UI.voteTypeOfferDraw,
     accept_draw: UI.voteTypeAcceptDraw,
   };
-  let voteBannerContent: React.ReactNode = null;
-  if (activeVote) {
-    const title =
-      activeVote.kind === "team"
-        ? `Vote: ${teamVoteTitleMap[activeVote.type]}`
-        : activeVote.kind === "reset"
-          ? UI.voteResetGame
-          : activeVote.amTarget
-            ? UI.kickVoteTargetSelf
-            : UI.voteKickTitle(activeVote.targetName);
-
-    voteBannerContent = (
-      <VoteBanner
-        title={title}
-        yesVotes={activeVote.yesVotes}
-        noVotes={activeVote.kind === "team" ? undefined : activeVote.noVotes}
-        requiredVotes={activeVote.requiredVotes}
-        timeLeft={voteTimeLeft}
-        myVoteEligible={activeVote.myVoteEligible}
-        myCurrentVote={activeVote.myCurrentVote}
-        onYes={() => castVote("yes")}
-        onNo={() => castVote("no")}
-      />
-    );
-  }
+  const voteBannerContent: React.ReactNode = activeVote ? (
+    <VoteBanner
+      title={`Vote: ${teamVoteTitleMap[activeVote.type]}`}
+      yesVotes={activeVote.yesVotes}
+      requiredVotes={activeVote.requiredVotes}
+      timeLeft={voteTimeLeft}
+      myVoteEligible={activeVote.myVoteEligible}
+      myCurrentVote={activeVote.myCurrentVote}
+      onYes={() => castVote("yes")}
+      onNo={() => castVote("no")}
+    />
+  ) : null;
 
   // --- Header icon buttons (reset + mute) ---
-  const showResetIcon = gameStatus !== GameStatus.Setup && !activeVote;
+  const showResetIcon = amILead && gameStatus !== GameStatus.Setup;
   const headerActions = (
     <div className="header-actions">
       {showResetIcon && (
         <button
           className="icon-btn"
-          onClick={resetGame}
+          onClick={() => setShowResetConfirm(true)}
           title={UI.btnResetLabel}
           aria-label={UI.btnResetLabel}
         >
@@ -587,85 +536,6 @@ export default function App() {
     </div>
   );
 
-  const mobileTabsAndContent = (
-    <div
-      className={`info-column${isMobileInfoVisible ? " mobile-overlay-active" : ""}`}
-    >
-      <nav className="info-tabs-nav">
-        <button
-          className={activeTab === "players" ? "active" : ""}
-          onClick={() => {
-            setActiveTab("players");
-            setIsMobileInfoVisible(true);
-          }}
-        >
-          {UI.tabPlayers}
-        </button>
-        <button
-          className={activeTab === "moves" ? "active" : ""}
-          onClick={() => {
-            setActiveTab("moves");
-            setIsMobileInfoVisible(true);
-          }}
-        >
-          {" "}
-          {UI.tabMoves}{" "}
-        </button>
-        <button
-          className={activeTab === "chat" ? "active" : ""}
-          onClick={() => {
-            setActiveTab("chat");
-            setHasUnreadMessages(false);
-            setIsMobileInfoVisible(true);
-          }}
-        >
-          {" "}
-          {UI.tabChat}{" "}
-          {hasUnreadMessages && <span className="unread-dot"></span>}{" "}
-        </button>
-      </nav>
-
-      <div className="info-tabs-content">
-        <PlayersPanel
-          activeTab={activeTab}
-          players={players}
-          myId={myId}
-          amDisconnected={amDisconnected}
-          openNameModal={openNameModal}
-          hasPlayed={hasPlayed}
-          canStartKick={!activeVote}
-          onStartKickVote={startKickVote}
-          showJoinControls
-          side={side}
-          gameStatus={gameStatus}
-          joinSide={joinSide}
-          autoAssign={autoAssign}
-        />
-        <MovesPanel
-          activeTab={activeTab}
-          turns={turns}
-          myId={myId}
-          movesRef={movesRef}
-        />
-        <ChatPanel
-          activeTab={activeTab}
-          chatMessages={chatMessages}
-          myId={myId}
-          chatInput={chatInput}
-          setChatInput={setChatInput}
-          chatInputRef={chatInputRef}
-          socket={socket}
-        />
-      </div>
-      <div className="mobile-info-header">
-        <h3>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</h3>
-        <button onClick={() => setIsMobileInfoVisible(false)}>
-          {UI.btnClose}
-        </button>
-      </div>
-    </div>
-  );
-
   return (
     <>
       <Toaster
@@ -721,71 +591,46 @@ export default function App() {
         <div className="header-bar">{headerActions}</div>
 
         <div className="main-layout">
-          {isMobile ? (
-            <>
-              <div className="game-column">
-                {topPlayerInfoBox}
-                {boardBlock}
-                {renderBottomPlayerInfoBox(bottomActionSlot)}
-              </div>
-              {voteBannerContent && (
-                <div className="vote-row vote-row-mobile">
-                  {voteBannerContent}
-                </div>
-              )}
-              {mobileTabsAndContent}
-            </>
-          ) : (
-            <>
-              <div className="side-left">
-                <div className="side-inner">
-                  <MovesPanel
-                    activeTab={activeTab}
-                    turns={turns}
-                    myId={myId}
-                    movesRef={movesRef}
-                  />
-                  <PlayersPanel
-                    activeTab={activeTab}
-                    players={players}
-                    myId={myId}
-                    amDisconnected={amDisconnected}
-                    openNameModal={openNameModal}
-                    hasPlayed={hasPlayed}
-                    canStartKick={!activeVote}
-                    onStartKickVote={startKickVote}
-                    showJoinControls
-                    side={side}
-                    gameStatus={gameStatus}
-                    joinSide={joinSide}
-                    autoAssign={autoAssign}
-                  />
-                </div>
-              </div>
-              <div className="game-column">
-                {topPlayerInfoBox}
-                {boardBlock}
-              </div>
-              <div className="side-right">
-                <div className="side-inner">
-                  <ChatPanel
-                    activeTab={activeTab}
-                    chatMessages={chatMessages}
-                    myId={myId}
-                    chatInput={chatInput}
-                    setChatInput={setChatInput}
-                    chatInputRef={chatInputRef}
-                    socket={socket}
-                  />
-                </div>
-              </div>
-              <div className="bottom-clock-row">
-                {renderBottomPlayerInfoBox(bottomActionSlot)}
-              </div>
-              {voteBannerContent && (
-                <div className="vote-row">{voteBannerContent}</div>
-              )}
-            </>
+          <div className="side-left">
+            <div className="side-inner">
+              <MovesPanel turns={turns} myId={myId} movesRef={movesRef} />
+              <PlayersPanel
+                players={players}
+                myId={myId}
+                amILead={amILead}
+                leadId={leadId}
+                amDisconnected={amDisconnected}
+                openNameModal={openNameModal}
+                hasPlayed={hasPlayed}
+                onKickPlayer={kickPlayer}
+                side={side}
+                gameStatus={gameStatus}
+                joinSide={joinSide}
+                autoAssign={autoAssign}
+              />
+            </div>
+          </div>
+          <div className="game-column">
+            {topPlayerInfoBox}
+            {boardBlock}
+          </div>
+          <div className="side-right">
+            <div className="side-inner">
+              <ChatPanel
+                chatMessages={chatMessages}
+                myId={myId}
+                chatInput={chatInput}
+                setChatInput={setChatInput}
+                chatInputRef={chatInputRef}
+                socket={socket}
+              />
+            </div>
+          </div>
+          <div className="bottom-clock-row">
+            {renderBottomPlayerInfoBox(bottomActionSlot)}
+          </div>
+          {voteBannerContent && (
+            <div className="vote-row">{voteBannerContent}</div>
           )}
         </div>
       </div>

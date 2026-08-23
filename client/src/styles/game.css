@@ -7,7 +7,6 @@
   background: var(--color-bg-surface);
   border-radius: var(--radius-md);
   width: 100%;
-  max-width: 700px;
   margin: 0 auto;
 }
 .clock-box {
@@ -147,8 +146,7 @@
   text-overflow: ellipsis;
   min-width: 0;
 }
-.vote-banner-yes-list,
-.vote-banner-no-list {
+.vote-banner-yes-list {
   font-style: normal;
   color: var(--color-text-secondary);
 }

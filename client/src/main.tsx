@@ -7,7 +7,6 @@ import "./styles/layout.css";
 import "./styles/game.css";
 import "./styles/panels.css";
 import "./styles/modals.css";
-import "./styles/responsive.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

@@ -5,7 +5,6 @@ import { UI } from "../messages";
 import { colorForPlayer } from "../playerColors";
 
 interface ChatPanelProps {
-  activeTab: string;
   chatMessages: ChatMessage[];
   myId: string;
   chatInput: string;
@@ -15,7 +14,6 @@ interface ChatPanelProps {
 }
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({
-  activeTab,
   chatMessages,
   myId,
   chatInput,
@@ -44,11 +42,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   };
 
   return (
-    <div
-      className={
-        "tab-panel chat-panel " + (activeTab === "chat" ? "active" : "")
-      }
-    >
+    <div className="tab-panel chat-panel">
       <h3>{UI.headingChat}</h3>
       <div className="chat-box-container">
         <div className="chat-messages">

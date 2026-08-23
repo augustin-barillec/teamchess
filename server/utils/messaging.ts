@@ -1,10 +1,10 @@
 import type { Socket } from "socket.io";
-import type { Player } from "../types.js";
-import { sessions, getIO, getOnlinePids } from "../state.js";
+import type { Player, PlayersUpdate } from "../types.js";
+import { sessions, getIO, getOnlinePids, getLeadId } from "../state.js";
 import { SENDER_SYSTEM } from "../shared_messages.js";
 
 /**
- * Broadcasts the current player list to all clients.
+ * Broadcasts the current player list — and who leads — to all clients.
  */
 export function broadcastPlayers(): void {
   const onlinePids = getOnlinePids();
@@ -23,7 +23,14 @@ export function broadcastPlayers(): void {
     else if (sess.side === "black") blackPlayers.push(p);
     else spectators.push(p);
   }
-  getIO().emit("players", { spectators, whitePlayers, blackPlayers });
+
+  const update: PlayersUpdate = {
+    spectators,
+    whitePlayers,
+    blackPlayers,
+    leadId: getLeadId(),
+  };
+  getIO().emit("players", update);
 }
 
 /**

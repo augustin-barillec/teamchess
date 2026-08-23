@@ -149,24 +149,25 @@ test.describe("Game and Social", () => {
     await expect(player2.locator(".chat-messages")).toContainText("hello1");
   });
 
-  test("kick_vote_and_blacklist", async ({ browser }, testInfo) => {
+  test("lead_kick_and_blacklist", async ({ browser }, testInfo) => {
     const [player1, player2, player3] = await setupPlayers(
       browser,
       testInfo,
       3
     );
+    // Player 1 connected first, so they are the lead: only they can kick
     const kickButtons = player1.locator(
       '.players-panel button:has-text("Kick")'
     );
     await expect(kickButtons).toHaveCount(2, { timeout: 5000 });
+    await expect(
+      player2.locator('.players-panel button:has-text("Kick")')
+    ).toHaveCount(0);
 
-    // Player 1 clicks "Kick" on the last player (player 3)
+    // Player 1 kicks the last player (player 3) — confirm, no vote
     await kickButtons.nth(1).click();
-    await player1.waitForTimeout(500);
-
-    // Player 2 clicks "Yes" to vote kick player 3
-    await player2.click('button:has-text("Yes")');
-    await player2.waitForTimeout(1000);
+    await player1.getByRole("button", { name: "Confirm" }).click();
+    await player1.waitForTimeout(1000);
 
     // Assert: Player 3 sees the offline banner (disconnected after kick)
     await expect(player3.locator(".offline-banner")).toBeVisible({
@@ -735,7 +736,7 @@ test.describe("Voting", () => {
     );
   });
 
-  test("reset_vote_accepted", async ({ browser }, testInfo) => {
+  test("lead_reset_game", async ({ browser }, testInfo) => {
     const [player1, player2, player3] = await setupPlayers(
       browser,
       testInfo,
@@ -754,17 +755,15 @@ test.describe("Voting", () => {
     await makeMove(player1, "e2", "e4");
     await player1.waitForTimeout(1000);
 
-    // Player 2 starts a reset game vote (auto-votes yes as initiator)
-    await player2.click('button[aria-label="Reset"]');
-    await player2.waitForTimeout(500);
+    // Player 1 connected first, so they are the lead: only they see Reset
+    await expect(
+      player2.locator('button[aria-label="Reset"]')
+    ).not.toBeVisible();
 
-    // Player 1 votes No
-    await player1.click('button:has-text("No")');
-    await player1.waitForTimeout(500);
-
-    // Player 3 votes Yes — 2 yes vs 1 no → strict majority (2/3) → passes
-    await player3.click('button:has-text("Yes")');
-    await player3.waitForTimeout(1000);
+    // Player 1 resets the game — confirm, no vote
+    await player1.click('button[aria-label="Reset"]');
+    await player1.getByRole("button", { name: "Confirm" }).click();
+    await player1.waitForTimeout(1000);
 
     // Assert: Game is reset — board is back to starting position (pawn on e2, not e4)
     await expect(
@@ -808,7 +807,7 @@ test.describe("Voting", () => {
     );
   });
 
-  test("reset_vote_shows_voter_labels", async ({ browser }, testInfo) => {
+  test("team_vote_shows_voter_labels", async ({ browser }, testInfo) => {
     const [player1, player2, player3] = await setupPlayers(
       browser,
       testInfo,
@@ -851,8 +850,8 @@ test.describe("Voting", () => {
     await makeMove(player1, "e2", "e4");
     await player1.waitForTimeout(1000);
 
-    // Bob clicks "Reset Game" (auto-votes yes)
-    await player2.click('button[aria-label="Reset"]');
+    // Bob starts a resign vote for Black (auto-votes yes as initiator)
+    await player2.click('button[aria-label="Resign"]');
     await player2.waitForTimeout(1000);
 
     // Assert on Alice's view: "Yes (1)" button visible, "Yes: Bob" label visible
@@ -861,26 +860,17 @@ test.describe("Voting", () => {
     });
     await expect(player1.getByText("Yes: Bob")).toBeVisible();
 
-    // Alice clicks "No"
-    await player1.click('button:has-text("No")');
-    await player1.waitForTimeout(1000);
-
-    // Assert: "No (1)" button visible, "No: Alice" label visible, "Yes: Bob" still visible
-    await expect(player1.locator('button:has-text("No (1)")')).toBeVisible();
-    await expect(player1.getByText("No: Alice")).toBeVisible();
-    await expect(player1.getByText("Yes: Bob")).toBeVisible();
-
-    // Charlie clicks "Yes" — vote passes (2/3 majority)
+    // Charlie clicks "Yes" — unanimity among Black (2/2) → Black resigns
     await player3.click('button:has-text("Yes")');
     await player3.waitForTimeout(1000);
 
-    // Assert: game resets — pawn back on e2
-    await expect(
-      player1.locator('[data-square="e2"] [data-piece="wP"]')
-    ).toBeVisible({ timeout: 5000 });
-    await expect(
-      player1.locator('[data-square="e4"] [data-piece]')
-    ).not.toBeVisible();
+    // Assert: game over by resignation
+    await expect(player1.locator(".chat-messages")).toContainText(
+      "Resignation"
+    );
+    await expect(player1.locator('button[title="Copy PGN"]')).toBeVisible({
+      timeout: 5000,
+    });
   });
 
   test("team_vote_buttons_disabled_for_late_joiner", async ({
@@ -938,11 +928,8 @@ test.describe("Voting", () => {
     await makeMove(player1, "e2", "e4");
     await player1.waitForTimeout(1000);
 
-    // Sanity: while no vote is active, vote triggers are available
-    await expect(player1.locator('button[aria-label="Reset"]')).toBeVisible();
-    await expect(
-      player1.locator('.players-panel button:has-text("Kick")')
-    ).toHaveCount(2);
+    // Sanity: while no vote is active, the team vote triggers are available
+    await expect(player3.locator('button[aria-label="Resign"]')).toBeVisible();
 
     // Player 2 starts a resign vote (auto-votes yes as initiator)
     await player2.click('button[aria-label="Resign"]');
@@ -955,14 +942,7 @@ test.describe("Voting", () => {
     await expect(player1.locator('button:has-text("Yes")')).toBeDisabled();
     await expect(player1.locator('button:has-text("No")')).toBeDisabled();
 
-    // While the vote is active, every other vote trigger is hidden:
-    // reset icon and kick buttons (P1), resign/draw icons (P3, same team)
-    await expect(
-      player1.locator('button[aria-label="Reset"]')
-    ).not.toBeVisible();
-    await expect(
-      player1.locator('.players-panel button:has-text("Kick")')
-    ).toHaveCount(0);
+    // While the vote is active, the other team vote triggers are hidden
     await expect(
       player3.locator('button[aria-label="Resign"]')
     ).not.toBeVisible();
@@ -970,60 +950,19 @@ test.describe("Voting", () => {
       player3.locator('button[aria-label="Offer Draw"]')
     ).not.toBeVisible();
 
+    // The lead powers are not votes: they stay available throughout
+    await expect(player1.locator('button[aria-label="Reset"]')).toBeVisible();
+    await expect(
+      player1.locator('.players-panel button:has-text("Kick")')
+    ).toHaveCount(2);
+
     // Player 3 votes No — a unanimity vote fails instantly
     await player3.click('button:has-text("No")');
     await player3.waitForTimeout(1000);
 
-    // Banner gone, all vote triggers are back
+    // Banner gone, the team vote triggers are back
     await expect(player1.locator(".vote-banner")).not.toBeVisible();
-    await expect(player1.locator('button[aria-label="Reset"]')).toBeVisible();
     await expect(player3.locator('button[aria-label="Resign"]')).toBeVisible();
-    await expect(
-      player1.locator('.players-panel button:has-text("Kick")')
-    ).toHaveCount(2);
-  });
-
-  test("kick_vote_rejected_in_shared_banner", async ({ browser }, testInfo) => {
-    const [player1, player2, player3] = await setupPlayers(
-      browser,
-      testInfo,
-      3
-    );
-    // Player 1 starts a kick vote against player 3 (all default-named "Player")
-    const kickButtons = player1.locator(
-      '.players-panel button:has-text("Kick")'
-    );
-    await expect(kickButtons).toHaveCount(2, { timeout: 5000 });
-    await kickButtons.nth(1).click();
-    await player1.waitForTimeout(500);
-
-    // The kick vote lives in the shared banner: voters see the target's name…
-    await expect(player2.locator(".vote-banner-title")).toContainText(
-      "Vote: Kick Player"
-    );
-    // …and the target sees it addressed to them, with voting disabled
-    await expect(player3.locator(".vote-banner-title")).toContainText(
-      "Vote: Kick you"
-    );
-    await expect(player3.locator('button:has-text("Yes")')).toBeDisabled();
-    await expect(player3.locator('button:has-text("No")')).toBeDisabled();
-
-    // While the kick vote runs, nobody can start another one
-    await expect(
-      player2.locator('.players-panel button:has-text("Kick")')
-    ).toHaveCount(0);
-
-    // Player 2 votes No — majority (2/3) becomes impossible → vote fails
-    await player2.click('button:has-text("No")');
-    await player2.waitForTimeout(1000);
-
-    await expect(player1.locator(".vote-banner")).not.toBeVisible();
-    await expect(player1.locator(".chat-messages")).toContainText(
-      "Vote to kick Player failed"
-    );
-    // Player 3 was not kicked and the kick buttons are back
-    await expect(player3.locator(".offline-banner")).not.toBeVisible();
-    await expect(kickButtons).toHaveCount(2);
   });
 });
 

@@ -12,10 +12,12 @@ export type Session = {
 };
 
 // `eligibleVoters` is the vote's frozen electorate: pid -> name as of vote creation.
-// See core/voteLogic.ts. Never mutate it or `required` on an in-flight vote.
-// Only one vote can be active at a time (gameState.activeVote), whatever its kind.
+// Never mutate it or `required` on an in-flight vote. Only one vote can be active
+// at a time (gameState.activeVote).
 
-interface InternalVoteBase {
+export interface InternalTeamVote {
+  side: PlayerSide;
+  type: VoteType;
   initiatorId: string;
   yesVoters: Set<string>;
   readonly eligibleVoters: ReadonlyMap<string, string>;
@@ -23,31 +25,6 @@ interface InternalVoteBase {
   timer: NodeJS.Timeout;
   endTime: number;
 }
-
-export interface InternalTeamVote extends InternalVoteBase {
-  kind: "team";
-  side: PlayerSide;
-  type: VoteType;
-}
-
-export interface InternalKickVote extends InternalVoteBase {
-  kind: "kick";
-  targetId: string;
-  targetName: string;
-  noVoters: Set<string>;
-  readonly total: number;
-}
-
-export interface InternalResetVote extends InternalVoteBase {
-  kind: "reset";
-  noVoters: Set<string>;
-  readonly total: number;
-}
-
-export type InternalActiveVote =
-  | InternalTeamVote
-  | InternalKickVote
-  | InternalResetVote;
 
 export interface Engine {
   send: (command: string, callback?: (output: string) => void) => void;
@@ -76,23 +53,20 @@ export interface GameState {
   /** Formatted end-of-game announcement, kept for resyncing late joiners. */
   endMessage?: string;
   drawOffer?: "white" | "black";
-  activeVote?: InternalActiveVote;
+  activeVote?: InternalTeamVote;
   blacklist: Set<string>;
 }
 
 export type {
   Player,
   Players,
+  PlayersUpdate,
   ChatMessage,
   GameInfo,
   Proposal,
   Selection,
   VoteType,
-  VoteKind,
-  ActiveVoteState,
   TeamVoteState,
-  KickVoteState,
-  ResetVoteState,
 } from "./shared_types.js";
 
 export { GameStatus, EndReason } from "./shared_types.js";

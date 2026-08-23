@@ -4,24 +4,18 @@ import { UI } from "../messages";
 import { colorForPlayer } from "../playerColors";
 
 interface MovesPanelProps {
-  activeTab: string;
   turns: Turn[];
   myId: string;
   movesRef: RefObject<HTMLDivElement | null>;
 }
 
 export const MovesPanel: React.FC<MovesPanelProps> = ({
-  activeTab,
   turns,
   myId,
   movesRef,
 }) => {
   return (
-    <div
-      className={
-        "tab-panel moves-panel " + (activeTab === "moves" ? "active" : "")
-      }
-    >
+    <div className="tab-panel moves-panel">
       <h3>{UI.headingMoves}</h3>
       {turns.some((t) => t.selection) ? (
         <div ref={movesRef} className="moves-list">

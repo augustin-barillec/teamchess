@@ -1,24 +1,24 @@
+import { useState } from "react";
 import { Players, GameStatus } from "../types";
 import { DisconnectedIcon } from "../DisconnectedIcon";
 import { DEFAULT_PLAYER_NAME, UI } from "../messages";
 import { colorForPlayer } from "../playerColors";
+import { ConfirmModal } from "./ConfirmModal";
 
 interface PlayersPanelProps {
-  activeTab: string;
   players: Players;
   myId: string;
+  /** The lead kicks players and resets the game; everyone else sees neither. */
+  amILead: boolean;
+  leadId: string | null;
   amDisconnected: boolean;
   openNameModal: () => void;
   hasPlayed: (playerId: string, teamSide: "white" | "black") => boolean;
-  /** False while any vote is active — starting a kick would be rejected anyway. */
-  canStartKick: boolean;
-  onStartKickVote: (targetId: string) => void;
-  /** Desktop-only: when provided, renders join/auto-assign controls in section headings. */
-  showJoinControls?: boolean;
-  side?: "white" | "black" | "spectator";
-  gameStatus?: GameStatus;
-  joinSide?: (target: "white" | "black" | "spectator") => void;
-  autoAssign?: () => void;
+  onKickPlayer: (targetId: string) => void;
+  side: "white" | "black" | "spectator";
+  gameStatus: GameStatus;
+  joinSide: (target: "white" | "black" | "spectator") => void;
+  autoAssign: () => void;
 }
 
 const PencilIcon: React.FC = () => (
@@ -40,25 +40,46 @@ const PencilIcon: React.FC = () => (
   </svg>
 );
 
+const LeadCrown: React.FC = () => (
+  <svg
+    width="14"
+    height="14"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-label={UI.leadLabel}
+  >
+    <title>{UI.leadLabel}</title>
+    <path d="M2 18h20" />
+    <path d="M3 7l5 5 4-8 4 8 5-5-2 11H5z" />
+  </svg>
+);
+
 export const PlayersPanel: React.FC<PlayersPanelProps> = ({
-  activeTab,
   players,
   myId,
+  amILead,
+  leadId,
   amDisconnected,
   openNameModal,
   hasPlayed,
-  canStartKick,
-  onStartKickVote,
-  showJoinControls = false,
+  onKickPlayer,
   side,
   gameStatus,
   joinSide,
   autoAssign,
 }) => {
+  const [pendingKick, setPendingKick] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+
   const isSetup = gameStatus === GameStatus.Setup;
   const canJoin = (target: "white" | "black" | "spectator") => {
-    if (!showJoinControls) return false;
-    if (!gameStatus || gameStatus === GameStatus.Over) return false;
+    if (gameStatus === GameStatus.Over) return false;
     if (side === target) return false;
     if (
       (target === "white" || target === "black") &&
@@ -68,18 +89,16 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
       return false;
     return true;
   };
-  const showAutoAssign =
-    showJoinControls &&
-    gameStatus !== undefined &&
-    gameStatus !== GameStatus.Over &&
-    side === "spectator";
+  const showAutoAssign = gameStatus !== GameStatus.Over && side === "spectator";
+
   const renderPlayerEntry = (
     p: { id: string; name: string; connected: boolean },
     teamSide?: "white" | "black"
   ) => {
     const isMe = p.id === myId;
+    const isLead = p.id === leadId;
     const disconnected = isMe ? amDisconnected : !p.connected;
-    const showKickButton = !isMe && canStartKick;
+    const showKickButton = amILead && !isMe;
     const played = teamSide ? hasPlayed(p.id, teamSide) : false;
     const nameStyle = { color: colorForPlayer(p.id) };
 
@@ -108,6 +127,11 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
               ✓
             </span>
           )}
+          {isLead && (
+            <span className="player-icon-slot">
+              <LeadCrown />
+            </span>
+          )}
           {disconnected && (
             <span className="player-icon-slot">
               <DisconnectedIcon />
@@ -116,8 +140,8 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
           {showKickButton && (
             <button
               className="kick-btn"
-              onClick={() => onStartKickVote(p.id)}
-              title={UI.kickVoteTooltip(p.name)}
+              onClick={() => setPendingKick({ id: p.id, name: p.name })}
+              title={UI.kickTooltip(p.name)}
             >
               {UI.btnKick}
             </button>
@@ -138,7 +162,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
       <div className="player-section">
         <div className="player-section-heading">
           <h3>{label}</h3>
-          {joinable && joinSide && (
+          {joinable && (
             <button className="join-btn" onClick={() => joinSide(target)}>
               {UI.btnJoin}
             </button>
@@ -152,71 +176,48 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
   };
 
   return (
-    <div
-      className={
-        "tab-panel players-panel " + (activeTab === "players" ? "active" : "")
-      }
-    >
+    <div className="tab-panel players-panel">
       <h3>{UI.headingPlayers}</h3>
       <div className="player-lists-container">
-        {showJoinControls ? (
-          <>
-            {renderSection(
-              "spectator",
-              UI.headingSpectators,
-              players.spectators
-            )}
-            {showAutoAssign && autoAssign && (
-              <button
-                className="auto-assign-btn"
-                onClick={autoAssign}
-                title={UI.tooltipAutoAssign}
-                aria-label={UI.tooltipAutoAssign}
-              >
-                <svg
-                  width="22"
-                  height="22"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <path d="m16 3 4 4-4 4" />
-                  <path d="M20 7H4" />
-                  <path d="m8 21-4-4 4-4" />
-                  <path d="M4 17h16" />
-                </svg>
-              </button>
-            )}
-            {renderSection("white", UI.headingWhite, players.whitePlayers)}
-            {renderSection("black", UI.headingBlack, players.blackPlayers)}
-          </>
-        ) : (
-          <>
-            <div>
-              <h3>{UI.headingSpectators}</h3>
-              <ul className="player-list">
-                {players.spectators.map((p) => renderPlayerEntry(p))}
-              </ul>
-            </div>
-            <div>
-              <h3>{UI.headingWhite}</h3>
-              <ul className="player-list">
-                {players.whitePlayers.map((p) => renderPlayerEntry(p, "white"))}
-              </ul>
-            </div>
-            <div>
-              <h3>{UI.headingBlack}</h3>
-              <ul className="player-list">
-                {players.blackPlayers.map((p) => renderPlayerEntry(p, "black"))}
-              </ul>
-            </div>
-          </>
+        {renderSection("spectator", UI.headingSpectators, players.spectators)}
+        {showAutoAssign && (
+          <button
+            className="auto-assign-btn"
+            onClick={autoAssign}
+            title={UI.tooltipAutoAssign}
+            aria-label={UI.tooltipAutoAssign}
+          >
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="m16 3 4 4-4 4" />
+              <path d="M20 7H4" />
+              <path d="m8 21-4-4 4-4" />
+              <path d="M4 17h16" />
+            </svg>
+          </button>
         )}
+        {renderSection("white", UI.headingWhite, players.whitePlayers)}
+        {renderSection("black", UI.headingBlack, players.blackPlayers)}
       </div>
+      {pendingKick && (
+        <ConfirmModal
+          message={UI.confirmKick(pendingKick.name)}
+          onConfirm={() => {
+            onKickPlayer(pendingKick.id);
+            setPendingKick(null);
+          }}
+          onCancel={() => setPendingKick(null)}
+        />
+      )}
     </div>
   );
 };
