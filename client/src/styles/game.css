@@ -7,6 +7,7 @@
   background: var(--color-bg-surface);
   border-radius: var(--radius-md);
   width: 100%;
+  min-width: 0;
   margin: 0 auto;
 }
 .clock-box {
@@ -19,6 +20,7 @@
   font-family: monospace;
   font-size: 2rem;
   min-width: 140px;
+  flex-shrink: 0;
 }
 .clock-box.active {
   background: var(--color-positive-muted);
@@ -37,11 +39,17 @@
   align-items: center;
   gap: var(--space-2);
   flex-grow: 1;
+  min-width: 0;
   color: var(--color-material-piece);
 }
+/* The captured pieces are the one part of the row with no natural width limit,
+   so they are the part that gives: clipped rather than widening the row past
+   the board. The +N that follows them must never be the thing that is cut. */
 .material-pieces {
   display: inline-flex;
   align-items: center;
+  min-width: 0;
+  overflow: hidden;
   gap: var(--space-2);
   line-height: 1;
 }
@@ -56,6 +64,7 @@
 .material-adv-label {
   display: inline-block;
   min-width: 3ch;
+  flex-shrink: 0;
   margin-right: var(--space-2);
   font-size: 0.75em;
   text-align: right;
