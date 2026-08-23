@@ -92,7 +92,15 @@
    board that had shrunk to fit a short viewport. Everything in column 2 is now
    exactly --board-size wide. */
 .main-layout {
-  --board-size: max(350px, min(80vh, calc(100vh - 340px)));
+  /* --non-board-height is everything that shares the viewport height with the
+     board: app padding 40 + header 48 + the two clock rows 2×70 + the vote
+     banner 44 + three 16px gaps = 320. Rounded up for slack, and it counts the
+     vote banner even when no vote is running — the board must not resize the
+     moment one starts, mid-drag. There is deliberately no lower bound: a board
+     that refuses to shrink pushes the vote banner out of an `overflow: hidden`
+     container, and an unreachable Yes/No is worse than a small board. */
+  --non-board-height: 360px;
+  --board-size: min(80vh, calc(100vh - var(--non-board-height)));
   display: grid;
   grid-template-columns: 1fr var(--board-size) 1fr;
   grid-template-rows: auto auto auto;
