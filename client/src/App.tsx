@@ -63,8 +63,6 @@ export default function App() {
     from: string;
     to: string;
   } | null>(null);
-  const boardContainerRef = useRef<HTMLDivElement>(null);
-  const [boardWidth, setBoardWidth] = useState(600);
   const movesRef = useRef<HTMLDivElement>(null);
   const [isNameModalOpen, setIsNameModalOpen] = useState(false);
   const [pendingTeamVote, setPendingTeamVote] = useState<VoteType | null>(null);
@@ -107,14 +105,6 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [position, chess]
   );
-
-  useEffect(() => {
-    const observer = new ResizeObserver((entries) => {
-      if (entries[0]) setBoardWidth(entries[0].contentRect.width);
-    });
-    if (boardContainerRef.current) observer.observe(boardContainerRef.current);
-    return () => observer.disconnect();
-  }, []);
 
   useEffect(() => {
     if (movesRef.current)
@@ -283,7 +273,6 @@ export default function App() {
           }
         : {}),
     },
-    boardWidth: boardWidth,
 
     // The drop lands on the square under the *cursor*, never under the dragged
     // piece: this ring is the only thing telling the player which one that is.
@@ -350,7 +339,7 @@ export default function App() {
   };
 
   const boardBlock = (
-    <div ref={boardContainerRef} className="board-wrapper">
+    <div className="board-wrapper">
       <Chessboard options={boardOptions} />
       <PromotionDialog
         promotionMove={promotionMove}
