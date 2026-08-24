@@ -15,8 +15,11 @@ export const MovesPanel: React.FC<MovesPanelProps> = ({
   movesRef,
 }) => {
   return (
-    <div className="tab-panel moves-panel">
-      <h3>{UI.headingMoves}</h3>
+    <div
+      className="tab-panel moves-panel"
+      role="region"
+      aria-label={UI.headingMoves}
+    >
       {turns.some((t) => t.selection) ? (
         <div ref={movesRef} className="moves-list">
           {turns

@@ -42,8 +42,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   };
 
   return (
-    <div className="tab-panel chat-panel">
-      <h3>{UI.headingChat}</h3>
+    <div
+      className="tab-panel chat-panel"
+      role="region"
+      aria-label={UI.headingChat}
+    >
       <div className="chat-box-container">
         <div className="chat-messages">
           {chatMessages

@@ -17,17 +17,6 @@
   min-height: 0;
 }
 
-.tab-panel > h3 {
-  display: block;
-  font-size: 1.2em;
-  margin: 0;
-  padding: var(--space-3) var(--space-3) var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--color-border-1);
-  background: var(--color-bg-surface);
-  flex-shrink: 0;
-  text-align: center;
-}
-
 .chat-box-container {
   display: flex;
   flex-direction: column;
