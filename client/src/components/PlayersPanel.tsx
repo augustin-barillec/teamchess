@@ -176,11 +176,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
   };
 
   return (
-    <div
-      className="tab-panel players-panel"
-      role="region"
-      aria-label={UI.headingPlayers}
-    >
+    <div className="tab-panel players-panel">
       <div className="player-lists-container">
         {renderSection("spectator", UI.headingSpectators, players.spectators)}
         {showAutoAssign && (

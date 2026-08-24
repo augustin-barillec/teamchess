@@ -2,9 +2,6 @@ export { DEFAULT_PLAYER_NAME } from "../../server/shared_messages";
 
 export const UI = {
   // Section headings
-  headingPlayers: "Players",
-  headingMoves: "Moves",
-  headingChat: "Chat",
   headingSpectators: "Spectators",
   headingWhite: "White",
   headingBlack: "Black",
