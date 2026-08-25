@@ -13,7 +13,7 @@
 .clock-box {
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-md);
-  color: var(--color-text-on-accent);
+  color: var(--color-text-bright);
   text-align: center;
   background: var(--color-bg-inky);
   font-weight: normal;
@@ -28,7 +28,7 @@
 }
 .clock-box.low-time {
   background-color: var(--color-danger-muted);
-  color: var(--color-text-on-accent);
+  color: var(--color-text-bright);
 }
 .clock-box.active.low-time {
   background-color: var(--color-danger-strong);

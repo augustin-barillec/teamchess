@@ -31,8 +31,11 @@
   --color-text-tertiary: #999;
   --color-text-muted: #666;
   --color-text-soft: #ccc;
+  /* Dark text, for the few surfaces light enough to need it — the gold buttons. */
   --color-text-invert: #1b1b1f;
-  --color-text-on-accent: #ffffff;
+  /* A notch brighter than --color-text-primary, for the handful of elements meant
+     to read as the lightest thing on screen (the clock above all). */
+  --color-text-bright: #ffffff;
 
   /* Borders */
   --color-border-subtle: #333;
