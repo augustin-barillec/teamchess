@@ -1,5 +1,4 @@
 import type { ChangeEvent, RefObject, KeyboardEvent } from "react";
-import { GameStatus } from "../types";
 import { UI } from "../messages";
 
 interface NameChangeModalProps {
@@ -10,8 +9,6 @@ interface NameChangeModalProps {
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
   onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => void;
   inputRef: RefObject<HTMLInputElement | null>;
-  gameStatus: GameStatus;
-  side: "white" | "black" | "spectator";
 }
 
 export const NameChangeModal: React.FC<NameChangeModalProps> = ({
@@ -22,8 +19,6 @@ export const NameChangeModal: React.FC<NameChangeModalProps> = ({
   onChange,
   onKeyDown,
   inputRef,
-  gameStatus: _gameStatus,
-  side: _side,
 }) => {
   if (!isOpen) return null;
 

@@ -19,4 +19,4 @@ export type {
   TeamVoteState,
 } from "../../server/shared_types";
 
-export { GameStatus, EndReason } from "../../server/shared_types";
+export { GameStatus } from "../../server/shared_types";

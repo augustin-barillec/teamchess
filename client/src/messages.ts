@@ -38,7 +38,6 @@ export const UI = {
   voteTypeOfferDraw: "Offer Draw",
   voteTypeAcceptDraw: "Accept Draw",
   votingOnDraw: "Voting on draw...",
-  voteInProgress: "Vote in progress.",
 
   // Kick (a lead power)
   kickTooltip: (name: string) => `Kick ${name}`,

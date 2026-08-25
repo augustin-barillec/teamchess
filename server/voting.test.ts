@@ -19,7 +19,6 @@ const roster = (...pids: string[]): Map<string, string> =>
 const teamVoteFixture = (eligible: Map<string, string>) => ({
   side: "white" as const,
   type: "resign" as const,
-  initiatorId: "p1",
   yesVoters: new Set(["p1"]),
   eligibleVoters: eligible,
   required: eligible.size,

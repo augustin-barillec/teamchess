@@ -30,28 +30,6 @@
   justify-content: flex-start;
   padding-bottom: var(--space-3);
 }
-.header-bar h1 {
-  margin: 0;
-  font-size: 1.5em;
-  white-space: nowrap;
-  display: none;
-}
-.game-id-bar {
-  display: none;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-  flex-grow: 1;
-  justify-content: center;
-  min-width: 300px;
-}
-.action-panel {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-  flex-wrap: wrap;
-}
-
 .header-actions {
   display: flex;
   align-items: center;

@@ -184,7 +184,6 @@ export function startTeamVote(
     {
       side,
       type,
-      initiatorId,
       yesVoters: isSystemTriggered ? new Set() : new Set([initiatorId]),
       eligibleVoters: teamRoster,
       required: teamRoster.size,

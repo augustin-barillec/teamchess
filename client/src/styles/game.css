@@ -69,19 +69,6 @@
   font-size: 0.75em;
   text-align: right;
 }
-.game-over-info {
-  margin-top: 10px;
-}
-.game-over-info p {
-  font-size: 1.2em;
-  margin: 0 0 var(--space-4) 0;
-}
-.pgn-header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
 .player-info-actions {
   display: flex;
   align-items: center;
@@ -188,11 +175,6 @@
   background: var(--color-vote-disabled-bg);
   border-color: var(--color-vote-disabled-border);
   color: var(--color-vote-disabled-text);
-  opacity: 0.6;
-  cursor: default;
-}
-
-.draw-offered-btn {
   opacity: 0.6;
   cursor: default;
 }

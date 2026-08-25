@@ -18,7 +18,6 @@ export type Session = {
 export interface InternalTeamVote {
   side: PlayerSide;
   type: VoteType;
-  initiatorId: string;
   yesVoters: Set<string>;
   readonly eligibleVoters: ReadonlyMap<string, string>;
   readonly required: number;
@@ -59,14 +58,9 @@ export interface GameState {
 
 export type {
   Player,
-  Players,
   PlayersUpdate,
-  ChatMessage,
-  GameInfo,
   Proposal,
-  Selection,
   VoteType,
-  TeamVoteState,
 } from "./shared_types.js";
 
 export { GameStatus, EndReason } from "./shared_types.js";

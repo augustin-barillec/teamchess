@@ -21,15 +21,6 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   chatInputRef,
   socket,
 }) => {
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const message = chatInput.trim();
-    if (message) {
-      socket?.emit("chat_message", message);
-      setChatInput("");
-    }
-  };
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -86,7 +77,9 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             })}
         </div>
         <div className="chat-form">
-          <form onSubmit={handleSubmit}>
+          {/* Enter is handled on the input (onKeyDown); this only stops the
+              browser's implicit submit from navigating away. */}
+          <form onSubmit={(e) => e.preventDefault()}>
             <input
               ref={chatInputRef}
               type="text"

@@ -544,8 +544,6 @@ export default function App() {
         onChange={(e) => setNameInput(e.target.value)}
         onKeyDown={handleNameKeyDown}
         inputRef={nameInputRef}
-        gameStatus={gameStatus}
-        side={side}
       />
       {pendingTeamVote && (
         <ConfirmModal

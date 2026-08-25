@@ -105,10 +105,6 @@ export class TestGame {
     this.fakeSockets.delete(pid);
   }
 
-  getSocket(pid: string): FakeSocket | undefined {
-    return this.fakeSockets.get(pid);
-  }
-
   hasEmitted(event: string): boolean {
     return this.emittedEvents.some((e) => e.event === event);
   }
