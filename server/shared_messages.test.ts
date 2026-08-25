@@ -1,10 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  reasonMessages,
-  gameOverFallback,
-  formatVoteType,
-  MSG,
-} from "./shared_messages.js";
+import { reasonMessages, formatVoteType, MSG } from "./shared_messages.js";
 import { EndReason } from "./shared_types.js";
 
 describe("shared_messages", () => {
@@ -62,19 +57,6 @@ describe("shared_messages", () => {
       const message = reasonMessages[EndReason.Checkmate]("white");
       expect(message).toContain("White");
       expect(message).not.toContain("white wins");
-    });
-  });
-
-  describe("gameOverFallback", () => {
-    it("generates fallback message with winner", () => {
-      const msg = gameOverFallback("white");
-      expect(msg).toContain("White");
-      expect(msg).toContain("wins");
-    });
-
-    it("generates fallback message with null winner", () => {
-      const msg = gameOverFallback(null);
-      expect(msg).toContain("Game over");
     });
   });
 

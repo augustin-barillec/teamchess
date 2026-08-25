@@ -5,7 +5,7 @@ import {
   resetGameState,
 } from "../state.js";
 import { GameStatus, EndReason, Proposal } from "../types.js";
-import { reasonMessages, gameOverFallback, MSG } from "../shared_messages.js";
+import { reasonMessages, MSG } from "../shared_messages.js";
 import { getCleanPgn } from "../utils/pgn.js";
 import { broadcastPlayers, sendSystemMessage } from "../utils/messaging.js";
 import { clearActiveVote, broadcastVote } from "../voting.js";
@@ -23,7 +23,7 @@ import { DEFAULT_CLOCK_TIME } from "../constants.js";
 /**
  * Ends the game with a given reason and optional winner.
  */
-export function endGame(reason: string, winner: string | null = null): void {
+export function endGame(reason: EndReason, winner: string | null = null): void {
   const gameState = getGameState();
   const io = getIO();
 
@@ -40,9 +40,7 @@ export function endGame(reason: string, winner: string | null = null): void {
   gameState.endReason = reason;
   gameState.endWinner = winner;
 
-  const message = reasonMessages[reason]
-    ? reasonMessages[reason](winner)
-    : gameOverFallback(winner);
+  const message = reasonMessages[reason](winner);
   gameState.endMessage = message;
 
   sendSystemMessage(message);

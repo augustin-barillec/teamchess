@@ -1,4 +1,22 @@
-type SoundType = "move" | "capture" | "check" | "start" | "end" | "reset";
+export type SoundType =
+  | "move"
+  | "capture"
+  | "check"
+  | "start"
+  | "end"
+  | "reset";
+
+/**
+ * Picks the sound a played move deserves, read straight off its SAN. SAN is the only
+ * form carrying both facts exactly: 'x' for a capture — en passant included, which the
+ * destination square alone cannot reveal — and '+'/'#' for a check. Check wins over
+ * capture when a move is both: being checked is the more urgent thing to hear.
+ */
+export function soundForMove(san: string): SoundType {
+  if (san.includes("+") || san.includes("#")) return "check";
+  if (san.includes("x")) return "capture";
+  return "move";
+}
 
 class SoundEngine {
   private ctx: AudioContext | null = null;

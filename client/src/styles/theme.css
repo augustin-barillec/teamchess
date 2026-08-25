@@ -16,7 +16,6 @@
   --color-accent: #d4a24c;
   --color-accent-dim: #8a6a2e;
   --color-accent-soft: #bfa575;
-  --color-accent-contrast: #1b1b1f;
 
   /* Semantic */
   --color-success: #6dcc6d;
@@ -25,8 +24,6 @@
   --color-danger-strong: #d32f2f;
   --color-danger-muted: #5c2b2b;
   --color-positive-muted: #3a5f0b;
-  --color-positive-panel: #2a3a2a;
-  --color-positive-panel-border: #4a8a4a;
 
   /* Text */
   --color-text-primary: #eee;
@@ -46,15 +43,11 @@
   --color-vote-bg: #2a2520;
   --color-vote-border: #555;
   --color-vote-yes-bg: #2a5a2a;
-  --color-vote-yes-bg-active: #3a7a3a;
   --color-vote-yes-border: #4a8a4a;
   --color-vote-yes-text: #88ff88;
-  --color-vote-yes-label: #66cc66;
   --color-vote-no-bg: #5a2a2a;
-  --color-vote-no-bg-active: #7a3a3a;
   --color-vote-no-border: #8a4a4a;
   --color-vote-no-text: #ff8888;
-  --color-vote-no-label: #ee6666;
   --color-vote-disabled-bg: #2a2a2a;
   --color-vote-disabled-border: #3a3a3a;
   --color-vote-disabled-text: #606060;
@@ -78,6 +71,9 @@
   --color-overlay-bg: rgba(0, 0, 0, 0.75);
   --color-overlay-scrim: rgba(0, 0, 0, 0.6);
   --color-shadow: rgba(0, 0, 0, 0.5);
+  /* The surface every modal shares — promotion dialog and confirm dialog alike. */
+  --color-dialog-bg: rgba(40, 40, 40, 0.95);
+  --color-dialog-border: #777;
   --color-overlay-hover: rgba(255, 255, 255, 0.1);
   --color-overlay-hover-subtle: rgba(255, 255, 255, 0.05);
 
@@ -86,7 +82,6 @@
   --color-banner-border: #5c2b2b;
 
   /* Misc */
-  --color-icon-fill: #eee;
   --color-material-piece: #999;
   --color-selected-move: #4caf50;
 
@@ -96,7 +91,6 @@
   --space-3: 0.75rem;
   --space-4: 1rem;
   --space-5: 1.5rem;
-  --space-6: 2rem;
 
   /* Radii */
   --radius-sm: 4px;

@@ -69,7 +69,7 @@ export function resolveSelectedMove(
 
 export interface GameOverResult {
   isOver: boolean;
-  reason?: string;
+  reason?: EndReason;
   winner?: PlayerSide | null;
 }
 

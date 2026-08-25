@@ -1,6 +1,3 @@
-/** Time threshold (seconds) at or below which low-time UI is shown */
-export const LOW_TIME_THRESHOLD = 60;
-
 export const STORAGE_KEYS = {
   pid: "tc:pid",
   name: "tc:name",

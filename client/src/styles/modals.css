@@ -3,8 +3,8 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: var(--color-bg-surface);
-  border: 2px solid var(--color-text-secondary);
+  background: var(--color-dialog-bg);
+  border: 2px solid var(--color-dialog-border);
   border-radius: var(--radius-lg);
   padding: var(--space-4);
   z-index: 100;
@@ -112,8 +112,8 @@
   justify-content: center;
 }
 .confirm-dialog {
-  background: rgba(40, 40, 40, 0.95);
-  border: 2px solid #777;
+  background: var(--color-dialog-bg);
+  border: 2px solid var(--color-dialog-border);
   border-radius: var(--radius-lg);
   padding: var(--space-5);
   box-shadow: 0 4px 12px var(--color-shadow);

@@ -223,7 +223,7 @@
   font-size: 0.75em;
   background: transparent;
   border: 1px solid var(--color-border-1);
-  color: var(--color-vote-disabled-text);
+  color: var(--color-text-muted);
   border-radius: var(--radius-sm);
   line-height: 1;
   margin: 0;

@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { LOW_TIME_THRESHOLD } from "../constants";
+import { INCREMENT_THRESHOLD } from "../../../server/shared_constants";
 
 interface PlayerInfoBoxProps {
   clockTime: number;
@@ -16,7 +16,7 @@ export const PlayerInfoBox: React.FC<PlayerInfoBoxProps> = ({
   isActive,
   actionSlot,
 }) => {
-  const isLowTime = clockTime > 0 && clockTime <= LOW_TIME_THRESHOLD;
+  const isLowTime = clockTime > 0 && clockTime <= INCREMENT_THRESHOLD;
 
   return (
     <div className="game-player-info">

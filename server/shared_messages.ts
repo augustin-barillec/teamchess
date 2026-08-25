@@ -8,23 +8,26 @@ import type { VoteType } from "./shared_types.js";
 const cap = (s: string | null) =>
   s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
 
-export const reasonMessages: Record<string, (winner: string | null) => string> =
-  {
-    [EndReason.Checkmate]: (winner) => `🏆 Checkmate!\n${cap(winner)} wins!`,
-    [EndReason.Stalemate]: () => `🤝 Game drawn by stalemate.`,
-    [EndReason.Threefold]: () => `🤝 Game drawn by threefold repetition.`,
-    [EndReason.Insufficient]: () => `🤝 Game drawn by insufficient material.`,
-    [EndReason.DrawRule]: () => `🤝 Game drawn by rule (e.g. fifty-move).`,
-    [EndReason.Resignation]: (winner) =>
-      `🏳️ Resignation!\n${cap(winner)} wins!`,
-    [EndReason.DrawAgreement]: () => `🤝 Draw agreed.`,
-    [EndReason.Timeout]: (winner) => `⏱️ Time!\n${cap(winner)} wins!`,
-    [EndReason.Abandonment]: (winner) =>
-      `🚪 Forfeit!\n${cap(winner)} wins — opposing team is empty.`,
-  };
-
-export const gameOverFallback = (winner: string | null): string =>
-  `🎉 Game over! ${cap(winner)} wins!`;
+/**
+ * A message per end reason. Keyed by `EndReason` rather than `string` on purpose: the
+ * compiler then refuses a new reason that nobody wrote a message for, which is what
+ * lets `endGame` look one up without a fallback for a case that cannot happen.
+ */
+export const reasonMessages: Record<
+  EndReason,
+  (winner: string | null) => string
+> = {
+  [EndReason.Checkmate]: (winner) => `🏆 Checkmate!\n${cap(winner)} wins!`,
+  [EndReason.Stalemate]: () => `🤝 Game drawn by stalemate.`,
+  [EndReason.Threefold]: () => `🤝 Game drawn by threefold repetition.`,
+  [EndReason.Insufficient]: () => `🤝 Game drawn by insufficient material.`,
+  [EndReason.DrawRule]: () => `🤝 Game drawn by rule (e.g. fifty-move).`,
+  [EndReason.Resignation]: (winner) => `🏳️ Resignation!\n${cap(winner)} wins!`,
+  [EndReason.DrawAgreement]: () => `🤝 Draw agreed.`,
+  [EndReason.Timeout]: (winner) => `⏱️ Time!\n${cap(winner)} wins!`,
+  [EndReason.Abandonment]: (winner) =>
+    `🚪 Forfeit!\n${cap(winner)} wins — opposing team is empty.`,
+};
 
 // ============================================================
 // Sender Names & Defaults

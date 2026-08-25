@@ -53,6 +53,37 @@ vi.stubGlobal("window", {
   AudioContext: MockAudioContext,
 });
 
+describe("soundForMove", () => {
+  it("picks the plain move sound for a quiet move", async () => {
+    const { soundForMove } = await import("./soundEngine");
+    expect(soundForMove("e4")).toBe("move");
+    expect(soundForMove("Nf3")).toBe("move");
+    expect(soundForMove("O-O")).toBe("move");
+  });
+
+  it("picks the capture sound for a capture", async () => {
+    const { soundForMove } = await import("./soundEngine");
+    expect(soundForMove("Bxc6")).toBe("capture");
+    expect(soundForMove("exd5")).toBe("capture");
+  });
+
+  it("picks the check sound for a check or a mate", async () => {
+    const { soundForMove } = await import("./soundEngine");
+    expect(soundForMove("Qh5+")).toBe("check");
+    expect(soundForMove("Qxf7#")).toBe("check");
+  });
+
+  it("prefers the check sound when a move both captures and checks", async () => {
+    const { soundForMove } = await import("./soundEngine");
+    expect(soundForMove("Qxh7+")).toBe("check");
+  });
+
+  it("falls back to the move sound when SAN is missing", async () => {
+    const { soundForMove } = await import("./soundEngine");
+    expect(soundForMove("")).toBe("move");
+  });
+});
+
 describe("SoundEngine", () => {
   beforeEach(() => {
     vi.clearAllMocks();

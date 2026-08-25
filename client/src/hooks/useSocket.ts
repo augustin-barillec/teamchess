@@ -15,7 +15,7 @@ import {
 import { Turn } from "../types";
 import { STORAGE_KEYS } from "../constants";
 import { DEFAULT_PLAYER_NAME, UI } from "../messages";
-import { sounds } from "../soundEngine";
+import { sounds, soundForMove } from "../soundEngine";
 
 interface UseSocketProps {
   chess: Chess;
@@ -226,17 +226,11 @@ export function useSocket({ chess }: UseSocketProps): UseSocketReturn {
       setLastMoveSquares({ from, to });
       setPosition(sel.fen);
 
-      const isFirstMove = sel.moveNumber === 1 && sel.side === "white";
-
-      if (!isFirstMove) {
-        const san = sel.san || "";
-        if (san.includes("#") || san.includes("+")) {
-          sounds.play("check");
-        } else if (san.includes("x")) {
-          sounds.play("capture");
-        } else {
-          sounds.play("move");
-        }
+      // The first move rides on the very submit that started the game, so its
+      // game_started chord is still sounding — staying silent here keeps the two
+      // from landing on top of each other.
+      if (!(sel.moveNumber === 1 && sel.side === "white")) {
+        sounds.play(soundForMove(sel.san || ""));
       }
     });
 
