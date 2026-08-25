@@ -14,6 +14,7 @@ import {
   joinTeam,
   joinSpectators,
   makeMove,
+  waitForMovePlayed,
 } from "./helpers";
 
 // Start Docker container before each test
@@ -356,45 +357,39 @@ test.describe("Gameplay Mechanics", () => {
     // 8. a7-a6 (black)
     // 9. g7xh8=Q (white promotes to queen)
 
-    // Move 1: g2-g4 (white)
+    // Each move waits for the turn to actually close — nine fixed sleeps put this
+    // test within a couple of seconds of the 30s budget, so it tipped over first
+    // whenever the workers ran in parallel.
     await makeMove(player1, "g2", "g4");
-    await player1.waitForTimeout(1000);
+    await waitForMovePlayed(player1, "g4");
 
-    // Move 2: h7-h5 (black)
     await makeMove(player2, "h7", "h5");
-    await player2.waitForTimeout(1000);
+    await waitForMovePlayed(player2, "h5");
 
-    // Move 3: g4xh5 (white captures)
     await makeMove(player1, "g4", "h5");
-    await player1.waitForTimeout(1000);
+    await waitForMovePlayed(player1, "gxh5");
 
-    // Move 4: g7-g6 (black)
     await makeMove(player2, "g7", "g6");
-    await player2.waitForTimeout(1000);
+    await waitForMovePlayed(player2, "g6");
 
-    // Move 5: h5xg6 (white captures)
     await makeMove(player1, "h5", "g6");
-    await player1.waitForTimeout(1000);
+    await waitForMovePlayed(player1, "hxg6");
 
-    // Move 6: Ng8-f6 (black moves knight)
     await makeMove(player2, "g8", "f6");
-    await player2.waitForTimeout(1000);
+    await waitForMovePlayed(player2, "Nf6");
 
-    // Move 7: g6-g7 (white)
     await makeMove(player1, "g6", "g7");
-    await player1.waitForTimeout(1000);
+    await waitForMovePlayed(player1, "g7");
 
-    // Move 8: a7-a6 (black)
     await makeMove(player2, "a7", "a6");
-    await player2.waitForTimeout(1000);
+    await waitForMovePlayed(player2, "a6");
 
     // Move 9: g7xh8 (white captures rook, triggers promotion)
     await makeMove(player1, "g7", "h8");
-    await player1.waitForTimeout(500);
 
     // Select Queen in promotion dialog (first button)
     await player1.click(".promotion-choices button:first-child");
-    await player1.waitForTimeout(1000);
+    await waitForMovePlayed(player1, "gxh8=Q");
 
     // Assert: There is a white queen on h8
     await expect(

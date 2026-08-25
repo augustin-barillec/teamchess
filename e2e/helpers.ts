@@ -1,3 +1,4 @@
+import { expect } from "@playwright/test";
 import type { Browser, BrowserContext, Page, TestInfo } from "@playwright/test";
 
 export const BASE_PORT = 8080;
@@ -64,6 +65,20 @@ export async function joinTeam(
 export async function joinSpectators(page: Page): Promise<void> {
   await page.click('.player-section:has(h3:has-text("Spectators")) .join-btn');
   await page.waitForTimeout(500);
+}
+
+/**
+ * Waits for a move to have actually been played, instead of sleeping and hoping.
+ * The moves list only ever lists turns the engine has already resolved, so the SAN
+ * showing up there is the signal that the turn closed and the board moved on.
+ */
+export async function waitForMovePlayed(
+  page: Page,
+  san: string
+): Promise<void> {
+  await expect(
+    page.locator(".moves-list").getByText(san, { exact: true }).first()
+  ).toBeVisible();
 }
 
 export async function makeMove(
