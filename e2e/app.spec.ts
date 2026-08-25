@@ -15,6 +15,10 @@ import {
   joinSpectators,
   makeMove,
   waitForMovePlayed,
+  waitForMyTurn,
+  waitForProposals,
+  waitForVoteBanner,
+  waitForYesVotes,
 } from "./helpers";
 
 // Start Docker container before each test
@@ -95,7 +99,9 @@ test.describe("Game and Social", () => {
 
     // Player 2 clicks Auto Assign — should join Black (balancing teams)
     await player2.click('button[aria-label="Auto assign"]');
-    await player2.waitForTimeout(500);
+    await expect(
+      player2.locator('button[aria-label="Auto assign"]')
+    ).toHaveCount(0, { timeout: 10_000 });
 
     // Assert: Black team has 1 player
     const blackPlayers = player1.locator(
@@ -123,7 +129,6 @@ test.describe("Game and Social", () => {
 
     // Player 1 clicks Save
     await player1.click('.name-modal-dialog button:has-text("Save")');
-    await player1.waitForTimeout(500);
 
     // Assert: Player 1 sees their new name "toto1" with the (You) marker.
     // (You) is a sibling of the button (not a child), separated by the
@@ -141,7 +146,6 @@ test.describe("Game and Social", () => {
     const chatInput = player1.locator('.chat-panel input[type="text"]');
     await chatInput.fill("hello1");
     await chatInput.press("Enter");
-    await player1.waitForTimeout(500);
 
     // Assert: Player 1 sees "hello1" in chat messages
     await expect(player1.locator(".chat-messages")).toContainText("hello1");
@@ -168,7 +172,6 @@ test.describe("Game and Social", () => {
     // Player 1 kicks the last player (player 3) — confirm, no vote
     await kickButtons.nth(1).click();
     await player1.getByRole("button", { name: "Confirm" }).click();
-    await player1.waitForTimeout(1000);
 
     // Assert: Player 3 sees the offline banner (disconnected after kick)
     await expect(player3.locator(".offline-banner")).toBeVisible({
@@ -183,7 +186,6 @@ test.describe("Game and Social", () => {
     // Player 3 tries to reconnect by navigating to the website
     await player3.goto("/");
     await player3.waitForSelector(".app-container");
-    await player3.waitForTimeout(1000);
 
     // Assert: Player 3 is still disconnected (blacklisted — server rejects immediately)
     await expect(player3.locator(".offline-banner")).toBeVisible({
@@ -215,10 +217,11 @@ test.describe("Game and Social", () => {
 
     // Player 1 (White) plays e2-e4 to start the game
     await makeMove(player1, "e2", "e4");
-    await player1.waitForTimeout(1000);
+    await waitForMovePlayed(spectator, "e4");
 
     // Spectator tries to drag e7-e5 — should be rejected client-side
     await makeMove(spectator, "e7", "e5");
+    // Asserting that nothing happens: there is no state change to wait for.
     await spectator.waitForTimeout(500);
 
     // Assert: Board unchanged for spectator — e7 still has a black pawn
@@ -255,7 +258,7 @@ test.describe("Gameplay Mechanics", () => {
 
     // Player 1 (White) plays e2-e4
     await makeMove(player1, "e2", "e4");
-    await player1.waitForTimeout(1000);
+    await waitForMyTurn(player2);
 
     // Assert: After white's turn, e4 has a white pawn and e2 is empty
     await expect(
@@ -267,14 +270,13 @@ test.describe("Gameplay Mechanics", () => {
 
     // Player 2 (Black) proposes e7-e5 (good move)
     await makeMove(player2, "e7", "e5");
-    await player2.waitForTimeout(500);
+    await waitForProposals(player2, 1);
 
     // Player 3 (Black) proposes b8-a6 (bad move)
     await makeMove(player3, "b8", "a6");
-    await player3.waitForTimeout(500);
 
-    // Wait for Stockfish to evaluate and select the best move (e7-e5)
-    await player1.waitForTimeout(3000);
+    // Two different proposals, so Stockfish really does have to choose
+    await waitForMovePlayed(player1, "e5");
 
     // Assert: After black's turn, e5 has a black pawn and e7 is empty
     // (Stockfish should have selected e7-e5 as the best move)
@@ -303,7 +305,7 @@ test.describe("Gameplay Mechanics", () => {
 
     // Player 1 (White) plays e2-e4
     await makeMove(player1, "e2", "e4");
-    await player1.waitForTimeout(1000);
+    await waitForMyTurn(player2);
 
     // Assert: e4 has a white pawn
     await expect(
@@ -312,7 +314,7 @@ test.describe("Gameplay Mechanics", () => {
 
     // Player 2 (Black) proposes a bad move: b8-a6
     await makeMove(player2, "b8", "a6");
-    await player2.waitForTimeout(500);
+    await waitForProposals(player2, 1);
 
     // Player 4 arrives late and joins Black
     const [player4] = await setupPlayers(browser, testInfo, 1);
@@ -320,14 +322,13 @@ test.describe("Gameplay Mechanics", () => {
 
     // Player 4 (Black) proposes the best move: e7-e5
     await makeMove(player4, "e7", "e5");
-    await player4.waitForTimeout(500);
+    await waitForProposals(player4, 2);
 
     // Player 3 (Black) proposes a bad move: h7-h6
     await makeMove(player3, "h7", "h6");
-    await player3.waitForTimeout(500);
 
-    // Wait for Stockfish to evaluate and select the best move (e7-e5)
-    await player1.waitForTimeout(3000);
+    // Three different proposals — Stockfish picks among them
+    await waitForMovePlayed(player1, "e5");
 
     // Assert: Stockfish picked player 4's move — e5 has a black pawn, e7 is empty
     await expect(
@@ -407,10 +408,11 @@ test.describe("Gameplay Mechanics", () => {
 
     // Player 1 (White) plays e2-e4 — starts game, now it's Black's turn
     await makeMove(player1, "e2", "e4");
-    await player1.waitForTimeout(1000);
+    await waitForMovePlayed(player1, "e4");
 
     // Player 1 tries to play d2-d4 (not their turn) — client-side rejection
     await makeMove(player1, "d2", "d4");
+    // Asserting that nothing happens: there is no state change to wait for.
     await player1.waitForTimeout(500);
 
     // Assert: d2 still has a white pawn (move was blocked)
@@ -439,15 +441,14 @@ test.describe("Gameplay Mechanics", () => {
 
     // Player 1 (White) plays e2-e4 — starts game, Black's turn
     await makeMove(player1, "e2", "e4");
-    await player1.waitForTimeout(1000);
+    await waitForMyTurn(player2);
 
     // Player 2 proposes e7-e5 (valid first move)
     await makeMove(player2, "e7", "e5");
-    await player2.waitForTimeout(500);
+    await waitForProposals(player2, 1);
 
     // Player 2 tries to submit a second move d7-d5 — server should reject
     await makeMove(player2, "d7", "d5");
-    await player2.waitForTimeout(500);
 
     // Assert: Toast shows "Already moved." error
     await expect(player2.getByText("Already moved")).toBeVisible();
@@ -478,13 +479,13 @@ test.describe("Game End Conditions", () => {
 
     // Move 1: White plays f2-f3
     await makeMove(player1, "f2", "f3");
-    await player1.waitForTimeout(1000);
+    await waitForMyTurn(player2);
 
-    // Move 2: Both black players propose e7-e5
+    // Move 2: Both black players propose e7-e5 (unanimous — no search needed)
     await makeMove(player2, "e7", "e5");
-    await player2.waitForTimeout(500);
+    await waitForProposals(player2, 1);
     await makeMove(player3, "e7", "e5");
-    await player3.waitForTimeout(3000);
+    await waitForMyTurn(player1);
 
     // Assert: e5 has a black pawn
     await expect(
@@ -493,13 +494,12 @@ test.describe("Game End Conditions", () => {
 
     // Move 3: White plays g2-g4
     await makeMove(player1, "g2", "g4");
-    await player1.waitForTimeout(1000);
+    await waitForMyTurn(player2);
 
     // Move 4: Both black players propose Qd8-h4 (checkmate)
     await makeMove(player2, "d8", "h4");
-    await player2.waitForTimeout(500);
+    await waitForProposals(player2, 1);
     await makeMove(player3, "d8", "h4");
-    await player3.waitForTimeout(3000);
 
     // Assert: Game is over — "Copy PGN" button appears
     await expect(player1.locator('button[title="Copy PGN"]')).toBeVisible({
@@ -534,19 +534,18 @@ test.describe("Game End Conditions", () => {
 
     // 1. f2-f3
     await makeMove(player1, "f2", "f3");
-    await player1.waitForTimeout(1000);
+    await waitForMyTurn(player2);
 
     // 1... e7-e5
     await makeMove(player2, "e7", "e5");
-    await player2.waitForTimeout(1000);
+    await waitForMyTurn(player1);
 
     // 2. g2-g4
     await makeMove(player1, "g2", "g4");
-    await player1.waitForTimeout(1000);
+    await waitForMyTurn(player2);
 
     // 2... Qd8-h4# (checkmate)
     await makeMove(player2, "d8", "h4");
-    await player2.waitForTimeout(1000);
 
     // Wait for game over — "Copy PGN" button appears
     await expect(player1.locator('button[title="Copy PGN"]')).toBeVisible({
@@ -580,11 +579,10 @@ test.describe("Game End Conditions", () => {
 
     // Player 1 plays e2-e4 (starts the game)
     await makeMove(player1, "e2", "e4");
-    await player1.waitForTimeout(1000);
+    await waitForMovePlayed(player2, "e4");
 
     // Player 2 joins spectators — black team is now empty
     await joinSpectators(player2);
-    await player2.waitForTimeout(500);
 
     // Assert: Game is over — "Copy PGN" button appears (only visible when game is Over)
     await expect(player1.locator('button[title="Copy PGN"]')).toBeVisible({
@@ -616,17 +614,16 @@ test.describe("Game End Conditions", () => {
 
     // Player 1 plays e2-e4 (starts the game)
     await makeMove(player1, "e2", "e4");
-    await player1.waitForTimeout(1000);
+    await waitForMovePlayed(player1, "e4");
 
     // Player 2 leaves the website (close page)
     await player2.close();
 
-    // Wait for DISCONNECT_GRACE_MS (20s) + buffer
-    await player1.waitForTimeout(25000);
-
-    // Assert: Game is over — "Copy PGN" button appears
+    // Assert: once DISCONNECT_GRACE_MS (20s) elapses, the game is over. Waiting on
+    // the button rather than sleeping past the grace period means the test ends the
+    // moment the forfeit lands instead of always paying the full 25s.
     await expect(player1.locator('button[title="Copy PGN"]')).toBeVisible({
-      timeout: 5000,
+      timeout: 30_000,
     });
 
     // Assert: Chat contains the forfeit message indicating White wins
@@ -660,12 +657,13 @@ test.describe("Game End Conditions", () => {
 
     // Player 1 plays e2-e4 (starts the game)
     await makeMove(player1, "e2", "e4");
-    await player1.waitForTimeout(1000);
+    await waitForMovePlayed(player1, "e4");
 
     // Player 2 disconnects (close page)
     await player2.close();
 
-    // Wait 5 seconds — well within the 20s grace period
+    // Genuinely time-based: the point is to sit inside the 20s grace period and
+    // prove no forfeit fires, so there is no state change to wait for.
     await player1.waitForTimeout(5000);
 
     // Player 2 reconnects — open new page in same context (preserves localStorage/PID)
@@ -673,7 +671,11 @@ test.describe("Game End Conditions", () => {
     trackedPages.push(player2Reconnected);
     await player2Reconnected.goto("/");
     await player2Reconnected.waitForSelector(".app-container");
-    await player2Reconnected.waitForTimeout(2000);
+    // The session is only really restored once the roster comes back with both
+    // players — asserting the negatives before that would pass for the wrong reason.
+    await expect(
+      player2Reconnected.locator(".players-panel .player-list li")
+    ).toHaveCount(2, { timeout: 10_000 });
 
     // Assert: Player 2 is reconnected — no offline banner
     await expect(
@@ -706,19 +708,18 @@ test.describe("Voting", () => {
 
     // Player 1 (White) plays e2-e4
     await makeMove(player1, "e2", "e4");
-    await player1.waitForTimeout(1000);
+    await waitForMovePlayed(player2, "e4");
 
     // Player 2 starts a resign vote (auto-votes yes as initiator)
     await player2.click('button[aria-label="Resign"]');
-    await player2.waitForTimeout(500);
+    await waitForVoteBanner(player3);
 
     // Player 3 votes Yes
     await player3.click('button:has-text("Yes")');
-    await player3.waitForTimeout(500);
+    await waitForYesVotes(player4, 2);
 
     // Player 4 votes Yes — vote passes (unanimous: 3/3)
     await player4.click('button:has-text("Yes")');
-    await player4.waitForTimeout(1000);
 
     // Assert: Game is over — "Copy PGN" button appears
     await expect(player1.locator('button[title="Copy PGN"]')).toBeVisible({
@@ -748,7 +749,7 @@ test.describe("Voting", () => {
 
     // Player 1 (White) plays e2-e4 to start the game
     await makeMove(player1, "e2", "e4");
-    await player1.waitForTimeout(1000);
+    await waitForMovePlayed(player1, "e4");
 
     // Player 1 connected first, so they are the lead: only they see Reset
     await expect(
@@ -758,7 +759,6 @@ test.describe("Voting", () => {
     // Player 1 resets the game — confirm, no vote
     await player1.click('button[aria-label="Reset"]');
     await player1.getByRole("button", { name: "Confirm" }).click();
-    await player1.waitForTimeout(1000);
 
     // Assert: Game is reset — board is back to starting position (pawn on e2, not e4)
     await expect(
@@ -784,12 +784,11 @@ test.describe("Voting", () => {
 
     // Player 1 (White) plays e2-e4 to start the game
     await makeMove(player1, "e2", "e4");
-    await player1.waitForTimeout(1000);
+    await waitForMovePlayed(player1, "e4");
 
     // Player 1 clicks Resign — solo player gets confirm modal → click Confirm
     await player1.click('button[aria-label="Resign"]');
     await player1.getByRole("button", { name: "Confirm" }).click();
-    await player1.waitForTimeout(1000);
 
     // Assert: Game is over — "Copy PGN" button appears
     await expect(player1.locator('button[title="Copy PGN"]')).toBeVisible({
@@ -816,7 +815,7 @@ test.describe("Voting", () => {
     await name1.clear();
     await name1.fill("Alice");
     await player1.click('.name-modal-dialog button:has-text("Save")');
-    await player1.waitForTimeout(500);
+    await expect(player1.locator("button.clickable-name")).toHaveText("Alice");
 
     // Player 2 → Bob
     await player2.click("button.clickable-name");
@@ -825,7 +824,7 @@ test.describe("Voting", () => {
     await name2.clear();
     await name2.fill("Bob");
     await player2.click('.name-modal-dialog button:has-text("Save")');
-    await player2.waitForTimeout(500);
+    await expect(player2.locator("button.clickable-name")).toHaveText("Bob");
 
     // Player 3 → Charlie
     await player3.click("button.clickable-name");
@@ -834,7 +833,9 @@ test.describe("Voting", () => {
     await name3.clear();
     await name3.fill("Charlie");
     await player3.click('.name-modal-dialog button:has-text("Save")');
-    await player3.waitForTimeout(500);
+    await expect(player3.locator("button.clickable-name")).toHaveText(
+      "Charlie"
+    );
 
     // Alice → White, Bob + Charlie → Black
     await joinTeam(player1, "white");
@@ -843,11 +844,11 @@ test.describe("Voting", () => {
 
     // Alice plays e2-e4 to start the game
     await makeMove(player1, "e2", "e4");
-    await player1.waitForTimeout(1000);
+    await waitForMovePlayed(player2, "e4");
 
     // Bob starts a resign vote for Black (auto-votes yes as initiator)
     await player2.click('button[aria-label="Resign"]');
-    await player2.waitForTimeout(1000);
+    await waitForVoteBanner(player1);
 
     // Assert on Alice's view: "Yes (1)" button visible, "Yes: Bob" label visible
     await expect(player1.locator('button:has-text("Yes (1)")')).toBeVisible({
@@ -857,7 +858,6 @@ test.describe("Voting", () => {
 
     // Charlie clicks "Yes" — unanimity among Black (2/2) → Black resigns
     await player3.click('button:has-text("Yes")');
-    await player3.waitForTimeout(1000);
 
     // Assert: game over by resignation
     await expect(player1.locator(".chat-messages")).toContainText(
@@ -883,16 +883,15 @@ test.describe("Voting", () => {
 
     // Start game
     await makeMove(player1, "e2", "e4");
-    await player1.waitForTimeout(1000);
+    await waitForMovePlayed(player2, "e4");
 
     // Player 2 starts resign vote
     await player2.click('button[aria-label="Resign"]');
-    await player2.waitForTimeout(500);
+    await waitForVoteBanner(player2);
 
     // Player 4 joins late, goes to Black
     const [player4] = await setupPlayers(browser, testInfo, 1);
     await joinTeam(player4, "black");
-    await player4.waitForTimeout(500);
 
     // Assert: P4 (late joiner) sees vote but Yes/No buttons are disabled
     const p4Yes = player4.locator('button:has-text("Yes")');
@@ -921,14 +920,13 @@ test.describe("Voting", () => {
 
     // Start game
     await makeMove(player1, "e2", "e4");
-    await player1.waitForTimeout(1000);
+    await waitForMovePlayed(player2, "e4");
 
     // Sanity: while no vote is active, the team vote triggers are available
     await expect(player3.locator('button[aria-label="Resign"]')).toBeVisible();
 
     // Player 2 starts a resign vote (auto-votes yes as initiator)
     await player2.click('button[aria-label="Resign"]');
-    await player2.waitForTimeout(500);
 
     // The single shared banner is visible to everyone — including White…
     await expect(player1.locator(".vote-banner")).toBeVisible();
@@ -953,7 +951,6 @@ test.describe("Voting", () => {
 
     // Player 3 votes No — a unanimity vote fails instantly
     await player3.click('button:has-text("No")');
-    await player3.waitForTimeout(1000);
 
     // Banner gone, the team vote triggers are back
     await expect(player1.locator(".vote-banner")).not.toBeVisible();
@@ -983,18 +980,17 @@ test.describe("Draw Offers", () => {
 
     // Player 1 (White) plays e2-e4
     await makeMove(player1, "e2", "e4");
-    await player1.waitForTimeout(1000);
+    await waitForMovePlayed(player1, "e4");
 
     // Player 1 offers a draw (single player → confirm modal)
     await player1.click('button[aria-label="Offer Draw"]');
     await player1.getByRole("button", { name: "Confirm" }).click();
-    await player1.waitForTimeout(1000);
+    await waitForVoteBanner(player2);
 
     // Player 2 and Player 3 see the accept_draw vote and click "Yes"
     await player2.click('button:has-text("Yes")');
-    await player2.waitForTimeout(500);
+    await waitForYesVotes(player3, 1);
     await player3.click('button:has-text("Yes")');
-    await player3.waitForTimeout(1000);
 
     // Assert: Game is over — "Copy PGN" button appears
     await expect(player1.locator('button[title="Copy PGN"]')).toBeVisible({
@@ -1024,20 +1020,18 @@ test.describe("Draw Offers", () => {
 
     // Player 1 (White) plays e2-e4
     await makeMove(player1, "e2", "e4");
-    await player1.waitForTimeout(1000);
+    await waitForMovePlayed(player2, "e4");
 
     // Player 2 starts an offer_draw team vote (auto-votes yes as initiator)
     await player2.click('button[aria-label="Offer Draw"]');
-    await player2.waitForTimeout(500);
+    await waitForVoteBanner(player3);
 
     // Player 3 votes Yes — offer_draw vote passes (2/2 unanimous)
     // Draw is offered to white → accept_draw vote starts for white
     await player3.click('button:has-text("Yes")');
-    await player3.waitForTimeout(1000);
 
     // Player 1 accepts the draw (votes Yes on accept_draw vote)
-    await player1.click('button:has-text("Yes")');
-    await player1.waitForTimeout(1000);
+    await player1.getByRole("button", { name: /^Yes/ }).click();
 
     // Assert: Game is over — "Copy PGN" button appears
     await expect(player1.locator('button[title="Copy PGN"]')).toBeVisible({

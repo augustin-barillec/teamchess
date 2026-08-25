@@ -58,14 +58,32 @@ export async function joinTeam(
   side: "white" | "black"
 ): Promise<void> {
   const heading = side === "white" ? "White" : "Black";
-  await page.click(`.player-section:has(h3:has-text("${heading}")) .join-btn`);
-  await page.waitForTimeout(500);
+  const btn = page.locator(
+    `.player-section:has(h3:has-text("${heading}")) .join-btn`
+  );
+  await btn.click();
+  // A section offers Join only while you are not in it: once the round-trip has
+  // landed, this one stops offering.
+  await expect(btn).toHaveCount(0, { timeout: 10_000 });
 }
 
 export async function joinSpectators(page: Page): Promise<void> {
-  await page.click('.player-section:has(h3:has-text("Spectators")) .join-btn');
-  await page.waitForTimeout(500);
+  const btn = page.locator(
+    '.player-section:has(h3:has-text("Spectators")) .join-btn'
+  );
+  await btn.click();
+  await expect(btn).toHaveCount(0, { timeout: 10_000 });
 }
+
+// ---------------------------------------------------------------------------
+// Waiting on state rather than on the clock.
+//
+// A fixed sleep encodes a guess about how long the network and Stockfish will
+// take, and the guess has to be generous enough for the slowest run — which is
+// what put pawn_promotion_to_queen within seconds of its own timeout. Each helper
+// below waits for the thing the test actually depends on, so a fast run stays
+// fast and a slow one still passes.
+// ---------------------------------------------------------------------------
 
 /**
  * Waits for a move to have actually been played, instead of sleeping and hoping.
@@ -74,11 +92,56 @@ export async function joinSpectators(page: Page): Promise<void> {
  */
 export async function waitForMovePlayed(
   page: Page,
-  san: string
+  san: string,
+  timeout = 15_000
 ): Promise<void> {
   await expect(
     page.locator(".moves-list").getByText(san, { exact: true }).first()
-  ).toBeVisible();
+  ).toBeVisible({ timeout });
+}
+
+/**
+ * Waits until it is this player's turn to move. The clock under the board is the
+ * one the app itself lights up for the side to move, so it only goes active once
+ * both the selected move and the turn change have landed here — exactly the
+ * precondition `makeMove` needs, since a drop out of turn is discarded.
+ */
+export async function waitForMyTurn(
+  page: Page,
+  timeout = 15_000
+): Promise<void> {
+  await expect(page.locator(".bottom-clock-row .clock-box")).toHaveClass(
+    /active/,
+    { timeout }
+  );
+}
+
+/**
+ * Waits until `count` members of the side to move are ticked as having proposed.
+ * Only the side to move ever shows the tick, so this counts the current turn.
+ */
+export async function waitForProposals(
+  page: Page,
+  count: number
+): Promise<void> {
+  await expect(page.locator(".player-played-check")).toHaveCount(count, {
+    timeout: 10_000,
+  });
+}
+
+/** Waits for the single shared vote banner to reach this player. */
+export async function waitForVoteBanner(page: Page): Promise<void> {
+  await expect(page.locator(".vote-banner")).toBeVisible({ timeout: 10_000 });
+}
+
+/** Waits for the vote tally to reach `count` — the Yes button carries it. */
+export async function waitForYesVotes(
+  page: Page,
+  count: number
+): Promise<void> {
+  await expect(
+    page.getByRole("button", { name: `Yes (${count})` })
+  ).toBeVisible({ timeout: 10_000 });
 }
 
 export async function makeMove(
