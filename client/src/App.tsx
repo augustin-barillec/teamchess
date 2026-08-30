@@ -254,6 +254,7 @@ export default function App() {
     position,
     boardOrientation: orientation,
     viewOnly: isFinalizing,
+    arePiecesDraggable: side !== "spectator",
     squareStyles: {
       ...(lastMoveSquares
         ? {

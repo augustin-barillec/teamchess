@@ -20,7 +20,7 @@ export const UI = {
   btnKick: "Kick",
   btnJoin: "Join",
   playedThisTurn: "Played this turn",
-  leadLabel: "Lead",
+  leadLabel: "Host",
 
   // Icon-button labels & tooltips
   btnResignLabel: "Resign",
@@ -37,7 +37,7 @@ export const UI = {
   voteTypeResign: "Resign",
   voteTypeOfferDraw: "Offer Draw",
   voteTypeAcceptDraw: "Accept Draw",
-  votingOnDraw: "Voting on draw...",
+  votingOnDraw: "Voting on draw…",
 
   // Kick (a lead power)
   kickTooltip: (name: string) => `Kick ${name}`,
@@ -50,9 +50,9 @@ export const UI = {
   chatPlaceholder: "Type a message...",
 
   // Confirmations
-  confirmResign: "Are you sure you want to resign?",
-  confirmOfferDraw: "Are you sure you want to offer a draw?",
-  confirmResetGame: "Are you sure you want to reset the game?",
+  confirmResign: "Resign the game?",
+  confirmOfferDraw: "Offer a draw?",
+  confirmResetGame: "Reset the game? All progress will be lost.",
   confirmKick: (name: string) => `Kick ${name}?`,
   confirmOk: "Confirm",
   confirmCancel: "Cancel",

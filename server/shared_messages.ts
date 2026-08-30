@@ -73,7 +73,7 @@ export const MSG = {
   errorNotEligible: "You are not eligible to vote.",
   errorTargetNotFound: "Target player not found.",
   errorVoteInProgress: "Another vote is already in progress.",
-  errorLeadOnly: "Only the lead can do that.",
+  errorLeadOnly: "Only the host can do that.",
   errorCannotKickSelf: "You cannot kick yourself.",
   errorOnlyWhiteStart: "Only the White team can start the game.",
   errorBothTeamsRequired: "Both teams must have at least one player to start.",

@@ -117,7 +117,6 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
               {p.name}
             </span>
           )}
-          {isMe && <span className="player-you-tag">(You)</span>}
           {played && (
             <span
               className="player-played-check"
@@ -127,6 +126,7 @@ export const PlayersPanel: React.FC<PlayersPanelProps> = ({
               ✓
             </span>
           )}
+          {isMe && <span className="player-you-tag">(You)</span>}
           {isLead && (
             <span className="player-icon-slot">
               <LeadCrown />

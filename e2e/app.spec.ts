@@ -154,7 +154,7 @@ test.describe("Game and Social", () => {
     await expect(player2.locator(".chat-messages")).toContainText("hello1");
   });
 
-  test("lead_kick_and_blacklist", async ({ browser }, testInfo) => {
+  test("host_kicks_player", async ({ browser }, testInfo) => {
     const [player1, player2, player3] = await setupPlayers(
       browser,
       testInfo,
@@ -732,7 +732,7 @@ test.describe("Voting", () => {
     );
   });
 
-  test("lead_reset_game", async ({ browser }, testInfo) => {
+  test("host_resets_game", async ({ browser }, testInfo) => {
     const [player1, player2, player3] = await setupPlayers(
       browser,
       testInfo,
