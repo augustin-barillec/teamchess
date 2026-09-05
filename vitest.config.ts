@@ -8,12 +8,18 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],
-      include: [
-        "server/core/**/*.ts",
-        "server/services/**/*.ts",
-        "client/src/**/*.ts",
+      // Les composants React (.tsx) sont volontairement hors couverture : ils
+      // sont couverts par les tests Playwright, pas par des tests unitaires.
+      include: ["server/**/*.ts", "client/src/**/*.ts"],
+      exclude: [
+        "**/*.test.ts",
+        "**/*.d.ts",
+        "server/testUtils.ts",
+        "server/types.ts",
+        "server/shared_types.ts",
+        "client/src/types.ts",
+        "client/src/hooks/**",
       ],
-      exclude: ["client/src/hooks/**", "client/src/types.ts"],
     },
   },
 });

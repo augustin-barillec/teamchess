@@ -26,8 +26,12 @@ export function startClock(): void {
       blackTime: gameState.blackTime,
     });
 
+    // The winner comes from the clock that actually reached zero, not from the
+    // side to move. Both agree today, since only the side to move is
+    // decremented, but keeping them coupled would announce the wrong winner the
+    // day a clock can drain off-turn (increment, reserve time, restored game).
     if (gameState.whiteTime <= 0 || gameState.blackTime <= 0) {
-      const winner = gameState.side === "white" ? "black" : "white";
+      const winner = gameState.whiteTime <= 0 ? "black" : "white";
       endGame(EndReason.Timeout, winner);
     }
   }, 1000);
